@@ -219,11 +219,8 @@ class Main(Node):
 
             
                 self.publisher_.publish(speed)
-<<<<<<< HEAD
                 time.sleep(self.sleep_rate)
-=======
                 time.sleep(0.1)
->>>>>>> 8244f3501a7517f7a6a7309e580424fd44b25796
             path = (path // 100)
 
             self.get_logger().info(f'reached checkpoint {checkpoint}')
