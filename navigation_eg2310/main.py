@@ -226,7 +226,7 @@ class Main(Node):
 
             
                 self.publisher_.publish(speed)
-                time.sleep(0.01)
+                time.sleep(0.1)
             path = (path // 100)
 
             self.get_logger().info(f'reached checkpoint {checkpoint}')
