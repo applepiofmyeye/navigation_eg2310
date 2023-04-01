@@ -18,13 +18,7 @@ import pickle
 BROKER_IP = '172.20.10.6'
 GPIO.setmode(GPIO.BCM) # for microswitch
 GPIO.setup(5, GPIO.IN, pull_up_down=GPIO.PUD_DOWN) #TODO: update channel this is for microswitch
-#set up MQTT, GPIO settings
-BROKER_IP = '172.20.10.6'
-GPIO.setmode(GPIO.BCM) # for microswitch
-GPIO.setup(5, GPIO.IN, pull_up_down=GPIO.PUD_DOWN) #TODO: update channel this is for microswitch
 
-
-broker_ip = '172.20.10.6'
 DOCK_TOPIC = 'dock'
 TABLE_TOPIC = 'table'
 
