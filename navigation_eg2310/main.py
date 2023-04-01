@@ -7,7 +7,6 @@ from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import OccupancyGrid
 import paho.mqtt.client as mqtt
 import RPi.GPIO as GPIO
-from route import Route
 
 import numpy as np
 import math
@@ -206,8 +205,8 @@ class Main(Node):
 
             #goal.x = waypoints[checkpoint][0]
             #goal.y = waypoints[checkpoint][1]
-            goal.x = 0.0
-            goal.y = 0.0
+            goal.x = 2.0
+            goal.y = 2.0
 
             while rclpy.ok():
                 inc_x = goal.x -x
@@ -226,7 +225,7 @@ class Main(Node):
 
             
                 self.publisher_.publish(speed)
-                time.sleep(0.01)
+                time.sleep(self.sleep_rate)
             path = (path // 100)
 
             self.get_logger().info(f'reached checkpoint {checkpoint}')
@@ -252,7 +251,7 @@ def main(args=None):
     except rclpy.exceptions.ROSInterruptException:
         pass
 
-    route.destroy_node()
+    start.destroy_node()
     rclpy.shutdown()
 
 if __name__ == '__main__':
