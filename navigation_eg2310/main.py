@@ -19,19 +19,19 @@ import pickle
 BROKER_IP = '172.20.10.6'
 GPIO.setmode(GPIO.BCM) # for microswitch
 GPIO.setup(5, GPIO.IN, pull_up_down=GPIO.PUD_DOWN) #TODO: update channel this is for microswitch
-#set up MQTT, GPIO settings
-BROKER_IP = '172.20.10.6'
-GPIO.setmode(GPIO.BCM) # for microswitch
-GPIO.setup(5, GPIO.IN, pull_up_down=GPIO.PUD_DOWN) #TODO: update channel this is for microswitch
 
-
-broker_ip = '172.20.10.6'
+#set up MQTT topics
 DOCK_TOPIC = 'dock'
 TABLE_TOPIC = 'table'
 
-
-
-
+rotatechange = 0.1
+speedchange = 0.05
+occ_bins = [-1, 0, 100, 101]
+stop_distance = 0.25
+front_angle = 30
+front_angles = range(-front_angle,front_angle+1,1)
+scanfile = 'lidar.txt'
+mapfile = 'map.txt'
 
 class Main(Node):
     def __init__(self):
@@ -78,14 +78,9 @@ class Main(Node):
 
         
     def route(self, table):
-        x = 0.0
-        y = 0.0
-        theta = 0.0
         table = table
 
-        
-
-        #configure the checkpoints
+        #configure the paths to take for each checkpoint
         if (table == '1'):
             self.get_logger().info('got 1')
             self.path = 706050201
@@ -98,9 +93,6 @@ class Main(Node):
         elif (table == '6'):
             self.path = 111009080706050201
             
-        
-        
-        #subscribers and publishers
         self.go_to()
     
     def euler_from_quaternion(self, x, y, z, w):
@@ -184,16 +176,18 @@ class Main(Node):
     def newOdom(self, msg):
         print('in odom callback')
         self.odom = msg
- 
-    def go_to(self):
-        print('in self.go_to') 
-
+        global x
+        global y
+        global theta
         x = self.odom.pose.pose.position.x
         y = self.odom.pose.pose.position.y
 
         rot_q = self.odom.pose.pose.orientation
         (roll, pitch, theta) = self.euler_from_quaternion(rot_q.x, rot_q.y, rot_q.z, rot_q.w)
         print(f'x: {rot_q.x} y: {rot_q.y}')
+ 
+    def go_to(self):
+        print('in self.go_to') 
 
 
         speed = Twist()
@@ -206,14 +200,16 @@ class Main(Node):
 
             #goal.x = waypoints[checkpoint][0]
             #goal.y = waypoints[checkpoint][1]
-            goal.x = 0.0
-            goal.y = 0.0
+            goal.x = 2.0
+            goal.y = 2.0
 
             while rclpy.ok():
                 inc_x = goal.x -x
                 inc_y = goal.y -y
 
                 angle_to_goal = math.atan2(inc_y, inc_x)
+
+                print(f'angle to turn: {theta}')
 
                 if abs(angle_to_goal - theta) > 0.1:
                     print('turning')
@@ -226,10 +222,11 @@ class Main(Node):
 
             
                 self.publisher_.publish(speed)
-                time.sleep(0.1)
+                time.sleep(self.sleep_rate)
             path = (path // 100)
+            #self.get_logger().info(f'reached checkpoint {checkpoint}')
+            self.get_logger().info(f'reached a checkpoint')
 
-            self.get_logger().info(f'reached checkpoint {checkpoint}')
         self.get_logger().info(f'finished traversing all checkpoints')
 
         self.dock_to_table()
@@ -252,7 +249,7 @@ def main(args=None):
     except rclpy.exceptions.ROSInterruptException:
         pass
 
-    route.destroy_node()
+    start.destroy_node()
     rclpy.shutdown()
 
 if __name__ == '__main__':
