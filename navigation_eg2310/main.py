@@ -7,7 +7,6 @@ from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import OccupancyGrid
 import paho.mqtt.client as mqtt
 import RPi.GPIO as GPIO
-from route import Route
 
 import numpy as np
 import math
@@ -223,6 +222,9 @@ class Main(Node):
             
                 self.publisher_.publish(speed)
                 time.sleep(self.sleep_rate)
+                time.sleep(self.sleep_rate)
+
+                time.sleep(0.1)
             path = (path // 100)
             #self.get_logger().info(f'reached checkpoint {checkpoint}')
             self.get_logger().info(f'reached a checkpoint')
