@@ -222,10 +222,17 @@ class Main(Node):
                 # get checkpoint from the path
                 checkpoint = path % 100
 
+<<<<<<< HEAD
                 #goal.x = waypoints[checkpoint][0]
                 #goal.y = waypoints[checkpoint][1]
                 goal.x = 5.0
                 goal.y = 5.0
+=======
+                goal.x = waypoints[checkpoint][0]
+                goal.y = waypoints[checkpoint][1]
+                #goal.x = 5.0
+                #goal.y = 5.0
+>>>>>>> 33bba48ae029070bce9c9719c33eb051b943991d
 
                 #while rclpy.ok():
                 inc_x = goal.x - self.x
@@ -243,8 +250,12 @@ class Main(Node):
                  #   print('move forward')
                   #  speed.linear.x = 0.2
                    # speed.angular.z = 0.0
-                self.rotatebot(angle_to_goal);
-                        
+                self.rotatebot(angle_to_goal)
+                twist = Twist()
+
+                while (self.x != goal.x and self.y != goal.y):
+                    twist.linear.x = speedchange
+
                 #self.publisher_.publish(speed)
                 time.sleep(self.sleep_rate)
 
