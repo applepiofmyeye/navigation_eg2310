@@ -23,7 +23,7 @@ GPIO.setup(5, GPIO.IN, pull_up_down=GPIO.PUD_DOWN) #TODO: update channel this is
 DOCK_TOPIC = 'dock'
 TABLE_TOPIC = 'table'
 
-rotatechange = 0.1
+rotatechange = 0.3
 speedchange = 0.05
 occ_bins = [-1, 0, 100, 101]
 stop_distance = 0.25
@@ -32,69 +32,7 @@ front_angles = range(-front_angle,front_angle+1,1)
 scanfile = 'lidar.txt'
 mapfile = 'map.txt'
 
-class Main(Node):
-    def __init__(self):
-        super().__init__('main')
-        self.publisher_ = self.create_publisher(Twist, 'cmd_vel', 10)
-        self.sleep_rate = 0.025
-        self.rate = 10
-        self.r = self.create_rate(self.rate)
-        self.broker_address= self.declare_parameter("~broker_ip_address", '172.20.10.6').value
-        self.DOCK_TOPIC = self.declare_parameter("~dock_pub_topic", 'dock').value
-        self.TABLE_TOPIC = self.declare_parameter("~table_sub_topic", 'table').value
-        self.mqttclient = mqtt.Client("ros2mqtt")
-        self.mqttclient.connect(self.broker_address)
-        self.mqttclient.on_connect = self.on_connect
-        self.mqttclient.on_message = self.on_message
-        self.mqttclient.loop_start()
-        self.get_logger().info('relay_ros2_mqtt:: started...')
-        self.get_logger().info(f'relay_ros2_mqtt:: broker_address = {self.broker_address}')
-        self.get_logger().info(f'relay_ros2_mqtt:: DOCK_TOPIC = {self.DOCK_TOPIC}') #topic to publish to through mqtt
-        self.get_logger().info(f'relay_ros2_mqtt:: TABLE_TOPIC = {self.TABLE_TOPIC}') # topic to subscribe to through mqtt
-
-        self.create_subscription(Odometry, 'odom', self.newOdom, 10)
-
-        self.publisher_ = self.create_publisher(Twist, 'cmd_vel', 10)
-
-
-
-    def on_connect(self, client, userdata, flags, rc):
-        print('Connected with result code'  + str(rc))
-        client.subscribe(self.TABLE_TOPIC)
-    
-    def on_message(self, client, userdata, msg):
-        table = msg.payload.decode('utf-8')
-
-        print('Message received\nTopic: ' + msg.topic + '\nMessage: ' + table)
-        
-        #while there is no can in the robot
-        #while (GPIO.input(5) != GPIO.LOW/HIGH): #TODO: update channel number
-         #   time.sleep(2)
-        self.mqttclient.loop_stop()
-        self.route(table)
-        
-
-
-        
-    def route(self, table):
-        table = table
-
-        #configure the paths to take for each checkpoint
-        if (table == '1'):
-            self.get_logger().info('got 1')
-            self.path = 706050201
-        elif (table == '2' or table == '3'):
-            self.path = 80706050201
-        elif (table == '4'):
-            self.path = 9080706050201
-        elif (table == '5'):
-            self.path = 4030201
-        elif (table == '6'):
-            self.path = 111009080706050201
-            
-        self.go_to()
-    
-    def euler_from_quaternion(self, x, y, z, w):
+def euler_from_quaternion(x, y, z, w):
         """
         Convert a quaternion into euler angles (roll, pitch, yaw)
         roll is rotation around x in radians (counterclockwise)
@@ -116,8 +54,100 @@ class Main(Node):
 
         return roll_x, pitch_y, yaw_z # in radians
 
+
+
+
+
+
+class Main(Node):
+    def __init__(self):
+        super().__init__('main')
+        self.x = 0.0
+        self.y = 0.0
+        self.yaw = 0.0
+        self.publisher_ = self.create_publisher(Twist, 'cmd_vel', 10)
+        self.sleep_rate = 0.025
+        self.rate = 10
+        self.r = self.create_rate(self.rate)
+        self.broker_address= self.declare_parameter("~broker_ip_address", '172.20.10.6').value
+        self.DOCK_TOPIC = self.declare_parameter("~dock_pub_topic", 'dock').value
+        self.TABLE_TOPIC = self.declare_parameter("~table_sub_topic", 'table').value
+        self.mqttclient = mqtt.Client("ros2mqtt")
+        self.mqttclient.on_connect = self.on_connect
+        self.mqttclient.on_message = self.on_message
+        self.get_logger().info('relay_ros2_mqtt:: started...')
+        self.get_logger().info(f'relay_ros2_mqtt:: broker_address = {self.broker_address}')
+        self.get_logger().info(f'relay_ros2_mqtt:: DOCK_TOPIC = {self.DOCK_TOPIC}') #topic to publish to through mqtt
+        self.get_logger().info(f'relay_ros2_mqtt:: TABLE_TOPIC = {self.TABLE_TOPIC}') # topic to subscribe to through mqtt
+
+        self.create_subscription(Odometry, 'odom', self.newOdom, 10)
+
+        self.publisher_ = self.create_publisher(Twist, 'cmd_vel', 10)
+
+    def connect_to_mqtt(self):
+        print('Connecting...')
+        self.mqttclient.connect(self.broker_address)
+        global run
+        run = True
+        while run:
+            self.mqttclient.loop()
+        #self.mqttclient.loop_start()
+
+    def on_connect(self, client, userdata, flags, rc):
+        print('Connected with result code'  + str(rc))
+        
+        client.subscribe(self.TABLE_TOPIC)
+            
+    def on_message(self, client, userdata, msg):
+        table = msg.payload.decode('utf-8')
+
+        print('Message received\nTopic: ' + msg.topic + '\nMessage: ' + table)
+        
+        #while there is no can in the robot
+        #while (GPIO.input(5) != GPIO.LOW/HIGH): #TODO: update channel number
+         #   time.sleep(2)
+        #self.mqttclient.loop_stop()
+        run = False
+        self.route(table)
+        
+
+
+        
+    def route(self, table):
+        table = table
+
+        #configure the paths to take for each checkpoint
+        if (table == '1'):
+            self.get_logger().info('got 1')
+            self.path = 706050201
+        elif (table == '2' or table == '3'):
+            self.path = 80706050201
+        elif (table == '4'):
+            self.path = 9080706050201
+        elif (table == '5'):
+            self.path = 4030201
+        elif (table == '6'):
+            self.path = 111009080706050201
+            
+        self.go_to(table)
+    
+        
+    # TODO: test if the following works. if yes, delete all above code
+    def newOdom(self, msg):
+        print('in odom callback')
+        self.odom = msg
+        
+        self.x = self.odom.pose.pose.position.x
+        self.y = self.odom.pose.pose.position.y
+
+        rot_q = self.odom.pose.pose.orientation
+        (roll, pitch, self.yaw) = euler_from_quaternion(rot_q.x, rot_q.y, rot_q.z, rot_q.w)
+        print(f'yaw: {self.yaw}')
+
+        
+    
     def rotatebot(self, rot_angle):
-        # self.get_logger().info('In rotatebot')
+        self.get_logger().info('In rotatebot')
         # create Twist object
         twist = Twist()
         
@@ -155,12 +185,12 @@ class Main(Node):
             current_yaw = self.yaw
             # convert the current yaw to complex form
             c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
-            # self.get_logger().info('Current Yaw: %f' % math.degrees(current_yaw))
+            self.get_logger().info('Current Yaw: %f' % math.degrees(current_yaw))
             # get difference in angle between current and target
             c_change = c_target_yaw / c_yaw
             # get the sign to see if we can stop
             c_dir_diff = np.sign(c_change.imag)
-            # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
+            self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
 
         self.get_logger().info('End Yaw: %f' % math.degrees(current_yaw))
         # set the rotation speed to 0
@@ -169,79 +199,72 @@ class Main(Node):
         self.publisher_.publish(twist)
 
 
+    def stopbot(self):
+        self.get_logger().info('In stopbot')
+        # publish to cmd_vel to move TurtleBot
+        twist = Twist()
+        twist.linear.x = 0.0
+        twist.angular.z = 0.0
+        # time.sleep(1)
+        self.publisher_.publish(twist)
 
-
-    # TODO: test if the following works. if yes, delete all above code
-    def newOdom(self, msg):
-        print('in odom callback')
-        self.odom = msg
-        global x
-        global y
-        global theta
-        x = self.odom.pose.pose.position.x
-        y = self.odom.pose.pose.position.y
-
-        rot_q = self.odom.pose.pose.orientation
-        (roll, pitch, theta) = self.euler_from_quaternion(rot_q.x, rot_q.y, rot_q.z, rot_q.w)
-        print(f'x: {rot_q.x} y: {rot_q.y}')
  
-    def go_to(self):
+    def go_to(self, table):
         print('in self.go_to') 
 
+        try:
+        #speed = Twist()
+            goal = Point()
+            path = self.path
+            while  path != 0:
+                print(f'{path}')
+                # get checkpoint from the path
+                checkpoint = path % 100
 
-        speed = Twist()
-        goal = Point()
-        path = self.path
-        while  path != 0:
-            print(f'{path}')
-            # get checkpoint from the path
-            checkpoint = path % 100
+                #goal.x = waypoints[checkpoint][0]
+                #goal.y = waypoints[checkpoint][1]
+                goal.x = 2.0
+                goal.y = 2.0
 
-            #goal.x = waypoints[checkpoint][0]
-            #goal.y = waypoints[checkpoint][1]
-            goal.x = 2.0
-            goal.y = 2.0
-
-            while rclpy.ok():
-                inc_x = goal.x -x
-                inc_y = goal.y -y
+                #while rclpy.ok():
+                inc_x = goal.x - self.x
+                inc_y = goal.y - self.y
 
                 angle_to_goal = math.atan2(inc_y, inc_x)
 
-                print(f'angle to turn: {theta}')
+                print(f'angle to turn: {angle_to_goal}')
 
-                if abs(angle_to_goal - theta) > 0.1:
-                    print('turning')
-                    speed.linear.x = 0.0
-                    speed.angular.z = 0.1
-                else:
-                    print('move forward')
-                    speed.linear.x = 0.2
-                    speed.angular.z = 0.0
-
-            
-                self.publisher_.publish(speed)
-                time.sleep(self.sleep_rate)
-<<<<<<< HEAD
-=======
+                #if abs(angle_to_goal - theta) > 0.1:
+                #    print('turning')
+                 #   speed.linear.x = 0.0
+                  #  speed.angular.z = 0.1
+                #else:
+                 #   print('move forward')
+                  #  speed.linear.x = 0.2
+                   # speed.angular.z = 0.0
+                self.rotatebot(angle_to_goal);
+                        
+                #self.publisher_.publish(speed)
                 time.sleep(self.sleep_rate)
 
->>>>>>> 21e3770feff50464e48034bbf699c1ec22172ff9
-                time.sleep(0.1)
-            path = (path // 100)
-            #self.get_logger().info(f'reached checkpoint {checkpoint}')
-            self.get_logger().info(f'reached a checkpoint')
+                path = (path // 100)
+                self.get_logger().info(f'reached checkpoint {checkpoint}')
+                #self.get_logger().info(f'reached a checkpoint')
 
-        self.get_logger().info(f'finished traversing all checkpoints')
+            self.get_logger().info(f'finished traversing all checkpoints')
 
-        self.dock_to_table()
+            self.dock_to_table(table)
+        except Exception as e:
+            print(e)
+        finally:
+            self.stopbot()
     
-    def dock_to_table(self): #TODO: import rotatebot and check the turning angle
-        if (self.table == 2):
+    def dock_to_table(self, table): #TODO: import rotatebot and check the turning angle
+        if (table == '2'):
             self.rotatebot(-math.pi / 2.0)
-        elif (self.table == 3 | self.table == 4):
+        elif (table == '3' or table == '4'):
             self.rotatebot(math.pi / 2.0)
-        
+ 
 
 
 
@@ -250,7 +273,8 @@ def main(args=None):
     rclpy.init(args=args)
     try:
         start = Main()
-        rclpy.spin(start)
+        start.connect_to_mqtt()
+        #rclpy.spin(start)
     except rclpy.exceptions.ROSInterruptException:
         pass
 
