@@ -13,6 +13,7 @@ import math
 import cmath
 import time
 import pickle
+waypoints = pickle.load(open("waypoints.pickle"))
 
 #set up MQTT, GPIO settings
 BROKER_IP = '172.20.10.6'
@@ -247,8 +248,13 @@ class Main(Node):
                 twist = Twist()
 
                 while (self.x != goal.x and self.y != goal.y):
+                    print('moving forward')
                     twist.linear.x = speedchange
+                    self.publisher_.publish(twist)
 
+                twist.linear.x = 0.0
+                twist.angular.z = 0.0
+                self.publisher_.publish(twist)
                 #self.publisher_.publish(speed)
                 time.sleep(self.sleep_rate)
 
@@ -264,7 +270,7 @@ class Main(Node):
         finally:
             self.stopbot()
     
-    def dock_to_table(self, table): #TODO: import rotatebot and check the turning angle
+    def dock_to_table(self, table): 
         if (table == '2'):
             self.rotatebot(-math.pi / 2.0)
         elif (table == '3' or table == '4'):
