@@ -170,6 +170,7 @@ class Main(Node):
         # set linear speed to zero so the TurtleBot rotates on the spot
         twist.linear.x = 0.0
         # set the direction to rotate
+        print(c_change_dir)
         twist.angular.z = c_change_dir * rotatechange
         # start rotation
         self.publisher_.publish(twist)
@@ -223,8 +224,8 @@ class Main(Node):
 
                 #goal.x = waypoints[checkpoint][0]
                 #goal.y = waypoints[checkpoint][1]
-                goal.x = 2.0
-                goal.y = 2.0
+                goal.x = 5.0
+                goal.y = 5.0
 
                 #while rclpy.ok():
                 inc_x = goal.x - self.x
