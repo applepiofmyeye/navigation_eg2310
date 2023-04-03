@@ -13,6 +13,8 @@ import math
 import cmath
 import time
 import pickle
+#with open("waypoints.pickle", "rb") as handle:
+#    waypoints = pickle.load(handle)
 
 #set up MQTT, GPIO settings
 BROKER_IP = '172.20.10.6'
@@ -31,6 +33,8 @@ front_angle = 30
 front_angles = range(-front_angle,front_angle+1,1)
 scanfile = 'lidar.txt'
 mapfile = 'map.txt'
+
+
 
 def euler_from_quaternion(x, y, z, w):
         """
@@ -82,7 +86,6 @@ class Main(Node):
 
         self.create_subscription(Odometry, 'odom', self.newOdom, 10)
 
-        self.publisher_ = self.create_publisher(Twist, 'cmd_vel', 10)
 
     def connect_to_mqtt(self):
         print('Connecting...')
@@ -170,19 +173,22 @@ class Main(Node):
         # set linear speed to zero so the TurtleBot rotates on the spot
         twist.linear.x = 0.0
         # set the direction to rotate
-        print(c_change_dir)
         twist.angular.z = c_change_dir * rotatechange
         # start rotation
-        self.publisher_.publish(twist)
+        #self.publisher_.publish(twist)
 
+        print('publishing..')
         # we will use the c_dir_diff variable to see if we can stop rotating
         c_dir_diff = c_change_dir
         # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
         # if the rotation direction was 1.0, then we will want to stop when the c_dir_diff
         # becomes -1.0, and vice versa
         while(c_change_dir * c_dir_diff > 0):
+            self.publisher_.publish(twist)
+
             # allow the callback functions to run
             rclpy.spin_once(self)
+            print('should still be turning..')
             current_yaw = self.yaw
             # convert the current yaw to complex form
             c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
@@ -195,6 +201,7 @@ class Main(Node):
 
         self.get_logger().info('End Yaw: %f' % math.degrees(current_yaw))
         # set the rotation speed to 0
+        twist.linear.x = 0.0
         twist.angular.z = 0.0
         # stop the rotation
         self.publisher_.publish(twist)
@@ -222,17 +229,10 @@ class Main(Node):
                 # get checkpoint from the path
                 checkpoint = path % 100
 
-<<<<<<< HEAD
                 #goal.x = waypoints[checkpoint][0]
                 #goal.y = waypoints[checkpoint][1]
-                goal.x = 5.0
-                goal.y = 5.0
-=======
-                goal.x = waypoints[checkpoint][0]
-                goal.y = waypoints[checkpoint][1]
-                #goal.x = 5.0
-                #goal.y = 5.0
->>>>>>> 33bba48ae029070bce9c9719c33eb051b943991d
+                goal.x = -5.0
+                goal.y = 0.0
 
                 #while rclpy.ok():
                 inc_x = goal.x - self.x
@@ -250,11 +250,15 @@ class Main(Node):
                  #   print('move forward')
                   #  speed.linear.x = 0.2
                    # speed.angular.z = 0.0
+                if (angle_to_goal < 0):
+                    angle_to_goal = (math.pi * 2) - angle_to_goal
                 self.rotatebot(angle_to_goal)
+                time.sleep(1)
                 twist = Twist()
 
                 while (self.x != goal.x and self.y != goal.y):
                     twist.linear.x = speedchange
+                    self.publisher_.publish(twist)
 
                 #self.publisher_.publish(speed)
                 time.sleep(self.sleep_rate)
