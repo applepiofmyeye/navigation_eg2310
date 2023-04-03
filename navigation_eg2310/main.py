@@ -115,11 +115,10 @@ class Main(Node):
 
         
     def route(self, table):
-        table = table
+        self.get_logger().info(f'got {table}')
 
         #configure the paths to take for each checkpoint
         if (table == '1'):
-            self.get_logger().info('got 1')
             self.path = 706050201
         elif (table == '2' or table == '3'):
             self.path = 80706050201
@@ -142,27 +141,27 @@ class Main(Node):
         self.y = self.odom.pose.pose.position.y
 
         rot_q = self.odom.pose.pose.orientation
-        (roll, pitch, self.yaw) = euler_from_quaternion(rot_q.x, rot_q.y, rot_q.z, rot_q.w)
+        roll, pitch, self.yaw = euler_from_quaternion(rot_q.x, rot_q.y, rot_q.z, rot_q.w)
         print(f'yaw: {self.yaw}')
 
         
-    
+
     def rotatebot(self, rot_angle):
         self.get_logger().info('In rotatebot')
         # create Twist object
         twist = Twist()
-        
+
         # get current yaw angle
         current_yaw = self.yaw
         # log the info
         self.get_logger().info('Current: %f' % math.degrees(current_yaw))
         # we are going to use complex numbers to avoid problems when the angles go from
         # 360 to 0, or from -180 to 180
-        c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
+        c_yaw = complex(math.cos(current_yaw), math.sin(current_yaw))
         # calculate desired yaw
         target_yaw = current_yaw + math.radians(rot_angle)
         # convert to complex notation
-        c_target_yaw = complex(math.cos(target_yaw),math.sin(target_yaw))
+        c_target_yaw = complex(math.cos(target_yaw), math.sin(target_yaw))
         self.get_logger().info('Desired: %f' % math.degrees(cmath.phase(c_target_yaw)))
         # divide the two complex numbers to get the change in direction
         c_change = c_target_yaw / c_yaw
@@ -171,7 +170,6 @@ class Main(Node):
         # set linear speed to zero so the TurtleBot rotates on the spot
         twist.linear.x = 0.0
         # set the direction to rotate
-        print(c_change_dir)
         twist.angular.z = c_change_dir * rotatechange
         # start rotation
         self.publisher_.publish(twist)
@@ -186,7 +184,7 @@ class Main(Node):
             rclpy.spin_once(self)
             current_yaw = self.yaw
             # convert the current yaw to complex form
-            c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
+            c_yaw = complex(math.cos(current_yaw), math.sin(current_yaw))
             self.get_logger().info('Current Yaw: %f' % math.degrees(current_yaw))
             # get difference in angle between current and target
             c_change = c_target_yaw / c_yaw
@@ -244,18 +242,22 @@ class Main(Node):
                  #   print('move forward')
                   #  speed.linear.x = 0.2
                    # speed.angular.z = 0.0
-                self.rotatebot(angle_to_goal)
-                twist = Twist()
 
-                while (self.x != goal.x and self.y != goal.y):
+                # to turn:
+                self.rotatebot(angle_to_goal)
+
+
+                # to move forward
+                twist = Twist()
+                while (inc_x and inc_y > 0.1):
                     print('moving forward')
                     twist.linear.x = speedchange
+                    twist.angular.z = 0.0
                     self.publisher_.publish(twist)
 
                 twist.linear.x = 0.0
                 twist.angular.z = 0.0
                 self.publisher_.publish(twist)
-                #self.publisher_.publish(speed)
                 time.sleep(self.sleep_rate)
 
                 path = (path // 100)
