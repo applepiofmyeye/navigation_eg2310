@@ -27,7 +27,9 @@ import math
 import cmath
 import time
 import pickle
-waypoints = pickle.load(open("waypoints.pickle"))
+with open("waypoints.pickle", "rb") as handle:
+    waypoints = pickle.load(handle)
+print (waypoints)
 
 #set up MQTT, GPIO settings
 BROKER_IP = '172.20.10.6'
@@ -72,6 +74,8 @@ class AutoNav(Node):
 
     def __init__(self):
         super().__init__('auto_nav')
+        self.x = 0.0
+        self.y = 0.0
         self.roll = 0
         self.pitch = 0
         self.yaw = 0
@@ -287,7 +291,7 @@ class AutoNav(Node):
     def pick_shortest_direction(self):
         if self.laser_range.size != 0:
             # use nanargmax as there are nan's in laser_range added to replace 0's
-            lr2i = np.nanargmax(self.laser_range)
+            lr2i = np.nanargmin(self.laser_range)
             self.get_logger().info('Picked direction: %d %f m' % (lr2i, self.laser_range[lr2i]))
         else:
             lr2i = 0
@@ -325,6 +329,7 @@ class AutoNav(Node):
         
         while path != 0:
             checkpoint = path % 100
+            print(f"[CURRENT CHECKPOINT]: {checkpoint}")
             #allow the callback functions to run
             rclpy.spin_once(self)
             x = self.x
@@ -337,18 +342,22 @@ class AutoNav(Node):
             inc_y = goal_x - y
 
             angle_to_goal = math.atan2(inc_y, inc_x)
+            print(f"angle_to_goal = {angle_to_goal}")
             self.rotatebot(angle_to_goal)
             print("finished rotating")  
 
+            x_diff = goal_x - x
+            y_diff = goal_y - y
+            print(f"[INITIAL] x_diff = {x_diff}; y_diff = {y_diff}")
             
-
-            while (x_diff and y_diff != 0):
+            while (x_diff and y_diff > 0.1):
                 twist = Twist()
                 twist.linear.x = speedchange
                 twist.angular.z = 0.0
                 time.sleep(1)
                 self.publisher_.publish(twist)
-                rclpy.spin_once()
+                rclpy.spin_once(self)
+                print("[MOVING] x_diff = {x_diff}; y_diff = {y_diff}")
                 x_diff = goal_x - self.x 
                 y_diff = goal_y - self.y
             path = path // 100
@@ -390,7 +399,7 @@ class AutoNav(Node):
                         # find direction with the largest distance from the Lidar
                         # rotate to that direction
                         # start moving
-                        self.pick_direction()
+                        #self.pick_direction()
                     
                 # allow the callback functions to run
                 rclpy.spin_once(self)
