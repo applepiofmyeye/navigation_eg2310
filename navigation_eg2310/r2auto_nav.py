@@ -348,18 +348,23 @@ class AutoNav(Node):
             angle_to_goal = math.degrees(math.atan2(y_diff, x_diff))
 
             print(f"angle_to_goal = {angle_to_goal}")
+<<<<<<< HEAD
             angle = angle_to_goal - self.yaw
             self.get_logger().info(f'angle to turn: {angle}')
             self.rotatebot(angle)
             #self.rotatebot(math.degrees(angle_to_goal) - self.yaw)
             #self.rotatebot(0)
+=======
+            # take into account orientation of bot before turning
+            self.rotatebot(math.degrees(angle_to_goal + math.pi - self.yaw))
+>>>>>>> 4d668742e09d565f78702cf6c886a6a13f20d57d
             print("finished rotating")  
 
             print('waiting..')
             time.sleep(4)
             print(f"[INITIAL] x_diff = {x_diff}; y_diff = {y_diff}")
             
-            while (abs(x_diff) or abs(y_diff) > 0.01):
+            while (abs(x_diff) or abs(y_diff) > 0.1):
                 twist = Twist()
                 twist.linear.x = speedchange
                 twist.angular.z = 0.0
@@ -380,6 +385,20 @@ class AutoNav(Node):
             self.rotatebot(math.pi / 2.0)
         
         self.pick_shortest_direction()
+
+    def dock_assist(self, stop_d):
+        twist = Twist()
+
+        #get distance from different directions 
+        front = np.nan_to_num(self.laser_range[0], nan=3.5 ,posinf=3.5)
+        #frontright = np.nan_to_num(self.laser_range[FRONT_RIGHT], nan=3.5 ,posinf=3.5)
+        #frontleft = np.nan_to_num(self.laser_range[FRONT_LEFT], nan=3.5 ,posinf=3.5)
+        frontfrontleft = np.nan_to_num(self.laser_range[FRONT_FRONT_LEFT], nan=3.5 ,posinf=3.5)
+        left = np.nan_to_num(self.laser_range[90], nan=3.5 ,posinf=3.5)
+        #right = np.nan_to_num(self.laser_range[270], nan=3.5 ,posinf=3.5)
+
+
+
     
 
             
