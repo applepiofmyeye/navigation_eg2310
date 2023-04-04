@@ -168,7 +168,8 @@ class AutoNav(Node):
             self.path = 4030201
         elif (table == '6'):
             self.path = 111009080706050201
-            
+        elif (table == '7'):
+            self.path = 1            
         self.mover()
 
 
@@ -349,7 +350,7 @@ class AutoNav(Node):
             angle_to_goal = math.atan2(y_diff, x_diff)
 
             print(f"angle_to_goal = {angle_to_goal}")
-            self.rotatebot(math.degrees(angle_to_goal))
+            self.rotatebot(math.degrees(angle_to_goal) - self.yaw)
             #self.rotatebot(0)
             print("finished rotating")  
 
