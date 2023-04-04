@@ -330,29 +330,23 @@ class AutoNav(Node):
         path = self.path
         
         while path != 0:
-            checkpoint = path % 100
+            path, checkpoint = divmod(path, 100)
+
             print(f"[CURRENT CHECKPOINT]: {checkpoint}")
             #allow the callback functions to run
             rclpy.spin_once(self)
             x = self.x
             y = self.y
 
-            goal_x = waypoints[checkpoint][0][0] 
-            goal_y = waypoints[checkpoint][0][1]  
+            goal_x = waypoints[checkpoint][0]
+            goal_y = waypoints[checkpoint][1]  
 
-            inc_x = goal_x - x
-            inc_y = goal_y - y
+            #inc_x = goal_x - x
+            #inc_y = goal_y - y
+            x_diff = goal_x - x
+            y_diff = goal_y - y
 
-            angle_to_goal = math.atan2(inc_y, inc_x)
-            #if goal_x > 0:
-             #   if goal_y < 0:
-                    #angle_to_goal = 2 * math.pi - angle_to_goal
-            #else:
-             #   if goal_y > 0:
-                    #angle_to_goal = math.pi - angle_to_goal
-              #  else:
-                    #angle_to_goal += math.pi
-
+            angle_to_goal = math.atan2(y_diff, x_diff)
 
             print(f"angle_to_goal = {angle_to_goal}")
             self.rotatebot(math.degrees(angle_to_goal))
@@ -361,11 +355,9 @@ class AutoNav(Node):
 
             print('waiting..')
             time.sleep(4)
-            x_diff = goal_x - x
-            y_diff = goal_y - y
             print(f"[INITIAL] x_diff = {x_diff}; y_diff = {y_diff}")
             
-            while (abs(x_diff) or abs(y_diff) > 0.1):
+            while (abs(x_diff) or abs(y_diff) > 0.01):
                 twist = Twist()
                 twist.linear.x = speedchange
                 twist.angular.z = 0.0
@@ -376,7 +368,6 @@ class AutoNav(Node):
                 x_diff = goal_x - self.x 
                 y_diff = goal_y - self.y
 
-            path = path // 100
         self.dock_to_table()
     
     def dock_to_table(self):

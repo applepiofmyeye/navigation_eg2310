@@ -92,8 +92,8 @@ class Waypoint(Node):
             #while numbers != 0:
                 #num = numbers % 10
                 #numbers = (numbers // 10)
-            data = (px, py, ox, oy, oz)
-            waypoints[checkpt_id].append(data)
+            data = [px, py, ox, oy, oz]
+            waypoints[checkpt_id].extend(data)
             print(waypoints)
 
         elif inp == "s":
