@@ -95,24 +95,26 @@ class Waypoint(Node):
     
     def get_waypoints(self):
                 # self.get_logger().info('In odom_callback')
-        inp = input("Enter input: ")
-        if inp == "w":
-            checkpt_id = int(input("Enter checkpoint: "))
-            print("saving..")
-            rclpy.spin_once(self)
+        n = 13
+        while n != 0:
+            inp = input("Enter input: ")
+            if inp == "w":
+                checkpt_id = int(input("Enter checkpoint: "))
+                print("saving..")
+                rclpy.spin_once(self)
             # self.get_logger().info(orien)
             #while numbers != 0:
                 #num = numbers % 10
                 #numbers = (numbers // 10)
-            data = [self.px, self.py, self.ox, self.oy, self.oz]
-            waypoints[checkpt_id].extend(data)
-            print(waypoints)
-
-        elif inp == "s":
-            print("saving...")
-            with open('waypoints.pickle', 'wb') as handle:
-                pickle.dump(waypoints, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
+                data = [self.px, self.py, self.ox, self.oy, self.oz]
+                waypoints[checkpt_id].extend(data)
+                print(waypoints)
+                n -= 1
+            elif inp == "s":
+                print("saving...")
+                with open('waypoints.pickle', 'wb') as handle:
+                    pickle.dump(waypoints, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                n -= 1
 
 def main(args=None):
     rclpy.init(args=args)
