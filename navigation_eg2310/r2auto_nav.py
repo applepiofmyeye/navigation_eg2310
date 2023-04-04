@@ -237,6 +237,7 @@ class AutoNav(Node):
         twist.linear.x = 0.0
         # set the direction to rotate
         twist.angular.z = c_change_dir * rotatechange
+        time.sleep(1)
         # start rotation
         self.publisher_.publish(twist)
 
@@ -256,11 +257,12 @@ class AutoNav(Node):
             c_change = c_target_yaw / c_yaw
             # get the sign to see if we can stop
             c_dir_diff = np.sign(c_change.imag)
-            # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
+            self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
 
         self.get_logger().info('End Yaw: %f' % math.degrees(current_yaw))
         # set the rotation speed to 0
         twist.angular.z = 0.0
+        time.sleep(1)
         # stop the rotation
         self.publisher_.publish(twist)
 
@@ -290,7 +292,7 @@ class AutoNav(Node):
 
     def pick_shortest_direction(self):
         if self.laser_range.size != 0:
-            # use nanargmax as there are nan's in laser_range added to replace 0's
+            # use nanargmin as there are nan's in laser_range added to replace 0's
             lr2i = np.nanargmin(self.laser_range)
             self.get_logger().info('Picked direction: %d %f m' % (lr2i, self.laser_range[lr2i]))
         else:
@@ -339,27 +341,41 @@ class AutoNav(Node):
             goal_y = waypoints[checkpoint][0][1]  
 
             inc_x = goal_x - x
-            inc_y = goal_x - y
+            inc_y = goal_y - y
 
             angle_to_goal = math.atan2(inc_y, inc_x)
+            #if goal_x > 0:
+             #   if goal_y < 0:
+                    #angle_to_goal = 2 * math.pi - angle_to_goal
+            #else:
+             #   if goal_y > 0:
+                    #angle_to_goal = math.pi - angle_to_goal
+              #  else:
+                    #angle_to_goal += math.pi
+
+
             print(f"angle_to_goal = {angle_to_goal}")
-            self.rotatebot(angle_to_goal)
+            self.rotatebot(math.degrees(angle_to_goal))
+            #self.rotatebot(0)
             print("finished rotating")  
 
+            print('waiting..')
+            time.sleep(4)
             x_diff = goal_x - x
             y_diff = goal_y - y
             print(f"[INITIAL] x_diff = {x_diff}; y_diff = {y_diff}")
             
-            while (x_diff and y_diff > 0.1):
+            while (abs(x_diff) or abs(y_diff) > 0.1):
                 twist = Twist()
                 twist.linear.x = speedchange
                 twist.angular.z = 0.0
                 time.sleep(1)
                 self.publisher_.publish(twist)
                 rclpy.spin_once(self)
-                print("[MOVING] x_diff = {x_diff}; y_diff = {y_diff}")
+                print(f"[MOVING] x_diff = {x_diff}; y_diff = {y_diff}")
                 x_diff = goal_x - self.x 
                 y_diff = goal_y - self.y
+
             path = path // 100
         self.dock_to_table()
     
