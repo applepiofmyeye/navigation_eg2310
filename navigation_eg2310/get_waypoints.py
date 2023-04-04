@@ -63,6 +63,11 @@ class Waypoint(Node):
 
     def __init__(self):
         super().__init__('waypoint')
+        self.px = 0.0
+        self.py = 0.0
+        self.ox = 0.0
+        self.oy = 0.0
+        self.oz = 0.0
         
         # create subscription to track orientation
         self.odom_subscription = self.create_subscription(
@@ -78,21 +83,28 @@ class Waypoint(Node):
         self.yaw = 0
 
     def odom_callback(self, msg):
-        # self.get_logger().info('In odom_callback')
+        self.px = msg.pose.pose.position.x
+        self.py = msg.pose.pose.position.y
+        orien = msg.pose.pose.orientation
+        self.ox, self.oy, self.oz = euler_from_quaternion(orien.x, orien.y, orien.z, orien.w)
+        self.ox = orien.x
+        self.oy = orien.y
+        self.oz = orien.z
+
+
+    
+    def get_waypoints(self):
+                # self.get_logger().info('In odom_callback')
         inp = input("Enter input: ")
         if inp == "w":
             checkpt_id = int(input("Enter checkpoint: "))
             print("saving..")
-            orien =  msg.pose.pose.orientation
-            px = msg.pose.pose.position.x
-            py = msg.pose.pose.position.y
-            ox, oy, oz = euler_from_quaternion(orien.x, orien.y, orien.z, orien.w)
-
+            rclpy.spin_once(self)
             # self.get_logger().info(orien)
             #while numbers != 0:
                 #num = numbers % 10
                 #numbers = (numbers // 10)
-            data = [px, py, ox, oy, oz]
+            data = [self.px, self.py, self.ox, self.oy, self.oz]
             waypoints[checkpt_id].extend(data)
             print(waypoints)
 
@@ -101,13 +113,14 @@ class Waypoint(Node):
             with open('waypoints.pickle', 'wb') as handle:
                 pickle.dump(waypoints, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+
 def main(args=None):
     rclpy.init(args=args)
     try:
         waypoint = Waypoint()
         start = input("Press s to start: ")
         if start == "s":
-            rclpy.spin(waypoint)
+            waypoint.get_waypoints()
 
     except KeyboardInterrupt:
         waypoint.destroy_node()
