@@ -160,7 +160,7 @@ class AutoNav(Node):
 
         #configure the paths to take for each checkpoint
         if (table == '1'):
-            self.path = 30201
+            self.path = 0
         elif (table == '2' or table == '3'):
             self.path = 807060502
         elif (table == '4'):
@@ -168,9 +168,9 @@ class AutoNav(Node):
         elif (table == '5'):
             self.path = 40302
         elif (table == '6'):
-            self.path = 1110090807060502
+            self.path = 201
         elif (table == '7'):
-            self.path = 1 
+            self.path = 201 
         loadstatus = not bool(GPIO.input(21))
         while not loadstatus:
             print(f'Can loaded: {loadstatus}')
@@ -189,7 +189,7 @@ class AutoNav(Node):
         self.roll, self.pitch, self.yaw = euler_from_quaternion(orientation_quat.x, orientation_quat.y, orientation_quat.z, orientation_quat.w)
 
     def occ_callback(self, msg):
-        # self.get_logger().info('In occ_callback')
+        self.get_logger().info('In occ_callback')
         # create numpy array
         msgdata = np.array(msg.data)
         # compute histogram to identify percent of bins with -1
@@ -209,7 +209,7 @@ class AutoNav(Node):
 
 
     def scan_callback(self, msg):
-        # self.get_logger().info('In scan_callback')
+        self.get_logger().info('In scan_callback')
         # create numpy array
         self.laser_range = np.array(msg.ranges)
         # print to file
@@ -388,16 +388,23 @@ class AutoNav(Node):
 
     def go_to_table_6(self):
         rclpy.spin_once(self)
-        time.sleep(3)
+        time.sleep(2)
         goal_x = self.x + 0.5
         x_diff = goal_x - self.x
-        if self.laser_range.size() != 0:
+
+        
+        if self.laser_range.size != 0:
+            # use nanargmin as there are nan's in laser_range added to replace 0's
             lr2i = np.nanargmin(self.laser_range)
+            self.get_logger().info('Picked direction: %d %f m' % (lr2i, self.laser_range[lr2i]))
         else:
             lr2i = 0
-            print('no data!')
+            self.get_logger().info('No data!')
 
-
+        # rotate to that direction
+        if lr2i > 180:
+            lr2i -= 360
+        
         while x_diff > 0.1 and self.laser_range[lr2i] > 0.5:
             twist = Twist()
             twist.linear.x = speedchange
@@ -406,9 +413,10 @@ class AutoNav(Node):
             self.publisher_.publish(twist)
             rclpy.spin_once(self)
             time.sleep(1)
+            rclpy.spin_once(self)
             x_diff = goal_x - self.x
+            lr2i = np.nanargmin(self.laser_range)
         self.stopbot()
-        self.pick_shortest_direction()
         
     def dock_to_table(self):
         print('docking..')
@@ -418,7 +426,8 @@ class AutoNav(Node):
             self.rotatebot(-90 - math.degrees(self.yaw))
         elif (self.table == '3' or self.table == '4'):
             self.rotatebot(90 - math.degrees(self.yaw))
-        
+        elif (self.table == '6'):
+            self.go_to_table_6() 
         self.pick_shortest_direction()
 
     #def dock_assist(self, stop_d):
@@ -446,7 +455,7 @@ class AutoNav(Node):
             # find direction with the largest distance from the Lidar,
             # rotate to that direction, and start moving
             self.traverse_waypoints()
-
+            #self.dock_to_table();
             while rclpy.ok():
                 if self.laser_range.size != 0:
                     # check distances in front of TurtleBot and find values less
