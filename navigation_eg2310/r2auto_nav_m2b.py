@@ -232,6 +232,7 @@ class AutoNav(Node):
         # 360 to 0, or from -180 to 180
         #c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
         # calculate desired yaw
+        
         target_yaw = (current_yaw + math.radians(rot_angle))
         print(target_yaw)
         print("help" + str(rot_angle))
@@ -386,13 +387,37 @@ class AutoNav(Node):
         self.dock_to_table()
 
     def go_to_table_6(self):
+        rclpy.spin_once(self)
+        time.sleep(3)
+        goal_x = self.x + 0.5
+        x_diff = goal_x - self.x
+        if self.laser_range.size() != 0:
+            lr2i = np.nanargmin(self.laser_range)
+        else:
+            lr2i = 0
+            print('no data!')
+
+
+        while x_diff > 0.1 and self.laser_range[lr2i] > 0.5:
+            twist = Twist()
+            twist.linear.x = speedchange
+            twist.angular.z = 0.0
+            time.sleep(1)
+            self.publisher_.publish(twist)
+            rclpy.spin_once(self)
+            time.sleep(1)
+            x_diff = goal_x - self.x
+        self.stopbot()
+        self.pick_shortest_direction()
         
     def dock_to_table(self):
         print('docking..')
+        rclpy.spin_once(self)
+        time.sleep(1)
         if (self.table == '2'):
-            self.rotatebot(-math.pi / 2.0)
+            self.rotatebot(-90 - math.degrees(self.yaw))
         elif (self.table == '3' or self.table == '4'):
-            self.rotatebot(math.pi / 2.0)
+            self.rotatebot(90 - math.degrees(self.yaw))
         
         self.pick_shortest_direction()
 
@@ -471,7 +496,3 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-<<<<<<< HEAD
-=======
-
->>>>>>> d57ad4dc39987d987c860d6d94bc34a1f0671ed4
