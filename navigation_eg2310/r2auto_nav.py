@@ -168,8 +168,12 @@ class AutoNav(Node):
             self.path = 4030201
         elif (table == '6'):
             self.path = 111009080706050201
+<<<<<<< HEAD
         elif (table == '7'):
             self.path = 2           
+=======
+            
+>>>>>>> d3ab7fcffb11868194f352b5d4cb16e9273bea1c
         self.mover()
 
 
@@ -256,12 +260,12 @@ class AutoNav(Node):
             current_yaw = self.yaw
             # convert the current yaw to complex form
             c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
-            self.get_logger().info('Current Yaw: %f' % math.degrees(current_yaw))
+            # self.get_logger().info('Current Yaw: %f' % math.degrees(current_yaw))
             # get difference in angle between current and target
             c_change = c_target_yaw / c_yaw
             # get the sign to see if we can stop
             c_dir_diff = np.sign(c_change.imag)
-            #self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
+            self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
 
         self.get_logger().info('End Yaw: %f' % math.degrees(current_yaw))
         # set the rotation speed to 0
@@ -346,18 +350,25 @@ class AutoNav(Node):
             goal_x = waypoints[checkpoint][0]
             goal_y = waypoints[checkpoint][1]  
 
+            #inc_x = goal_x - x
+            #inc_y = goal_y - y
             x_diff = goal_x - x
             y_diff = goal_y - y
 
-            angle_to_goal = math.degrees(math.atan2(y_diff, x_diff))
+            angle_to_goal = math.atan2(y_diff, x_diff)
 
             print(f"angle_to_goal = {angle_to_goal}")
+<<<<<<< HEAD
             angle = angle_to_goal - math.degrees(self.yaw)
             self.get_logger().info(f'angle to turn: {angle}')
             self.rotatebot(angle)
             #self.rotatebot(math.degrees(angle_to_goal) - self.yaw)
             # take into account orientation of bot before turning
             #self.rotatebot(math.degrees(angle_to_goal + math.pi - self.yaw))
+=======
+            # take into account orientation of bot before turning
+            self.rotatebot(math.degrees(angle_to_goal + math.pi - self.yaw))
+>>>>>>> d3ab7fcffb11868194f352b5d4cb16e9273bea1c
             print("finished rotating")  
 
             print('waiting..')
