@@ -160,18 +160,17 @@ class AutoNav(Node):
 
         #configure the paths to take for each checkpoint
         if (table == '1'):
-            self.path = 706050201
+            self.path = 30201
         elif (table == '2' or table == '3'):
-            self.path = 80706050201
+            self.path = 807060502
         elif (table == '4'):
-            self.path = 9080706050201
+            self.path = 90807060502
         elif (table == '5'):
-            self.path = 4030201
+            self.path = 40302
         elif (table == '6'):
-            self.path = 111009080706050201
+            self.path = 1110090807060502
         elif (table == '7'):
-            self.path = 80402030105 
-            
+            self.path = 1 
         loadstatus = not bool(GPIO.input(21))
         while not loadstatus:
             print(f'Can loaded: {loadstatus}')
@@ -312,6 +311,8 @@ class AutoNav(Node):
             self.get_logger().info('No data!')
 
         # rotate to that direction
+        if lr2i > 180:
+            lr2i -= 360
         self.rotatebot(float(lr2i))
 
         # start moving
@@ -383,7 +384,9 @@ class AutoNav(Node):
                 y_diff = goal_y - self.y
             self.stopbot()
         self.dock_to_table()
-    
+
+    def go_to_table_6(self):
+        
     def dock_to_table(self):
         print('docking..')
         if (self.table == '2'):
