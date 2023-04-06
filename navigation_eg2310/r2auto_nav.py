@@ -168,7 +168,12 @@ class AutoNav(Node):
             self.path = 4030201
         elif (table == '6'):
             self.path = 111009080706050201
+<<<<<<< HEAD
+        elif (table == '7'):
+            self.path = 2           
+=======
             
+>>>>>>> d3ab7fcffb11868194f352b5d4cb16e9273bea1c
         self.mover()
 
 
@@ -217,36 +222,39 @@ class AutoNav(Node):
         # create Twist object
         twist = Twist()
         
+        print(rot_angle)     
         # get current yaw angle
         current_yaw = self.yaw
         # log the info
         self.get_logger().info('Current: %f' % math.degrees(current_yaw))
         # we are going to use complex numbers to avoid problems when the angles go from
         # 360 to 0, or from -180 to 180
-        c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
+        ##c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
         # calculate desired yaw
         target_yaw = current_yaw + math.radians(rot_angle)
+        target_yaw2 = target_yaw - (2 * math.pi)
         # convert to complex notation
         c_target_yaw = complex(math.cos(target_yaw),math.sin(target_yaw))
         self.get_logger().info('Desired: %f' % math.degrees(cmath.phase(c_target_yaw)))
         # divide the two complex numbers to get the change in direction
-        c_change = c_target_yaw / c_yaw
+        ##c_change = c_target_yaw / c_yaw
         # get the sign of the imaginary component to figure out which way we have to turn
-        c_change_dir = np.sign(c_change.imag)
+        ##c_change_dir = np.sign(c_change.imag)
         # set linear speed to zero so the TurtleBot rotates on the spot
         twist.linear.x = 0.0
         # set the direction to rotate
-        twist.angular.z = c_change_dir * rotatechange
+        twist.angular.z = rotatechange
         time.sleep(1)
         # start rotation
         self.publisher_.publish(twist)
 
         # we will use the c_dir_diff variable to see if we can stop rotating
-        c_dir_diff = c_change_dir
+        #c_dir_diff = c_change_dir
         # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
         # if the rotation direction was 1.0, then we will want to stop when the c_dir_diff
         # becomes -1.0, and vice versa
-        while(c_change_dir * c_dir_diff > 0):
+        while (abs(current_yaw - target_yaw) > 0.1): 
+        ##while(c_change_dir * c_dir_diff > 0):
             # allow the callback functions to run
             rclpy.spin_once(self)
             current_yaw = self.yaw
@@ -331,6 +339,7 @@ class AutoNav(Node):
         
         while path != 0:
             path, checkpoint = divmod(path, 100)
+            print(f'path = {path}')
 
             print(f"[CURRENT CHECKPOINT]: {checkpoint}")
             #allow the callback functions to run
@@ -349,15 +358,24 @@ class AutoNav(Node):
             angle_to_goal = math.atan2(y_diff, x_diff)
 
             print(f"angle_to_goal = {angle_to_goal}")
+<<<<<<< HEAD
+            angle = angle_to_goal - math.degrees(self.yaw)
+            self.get_logger().info(f'angle to turn: {angle}')
+            self.rotatebot(angle)
+            #self.rotatebot(math.degrees(angle_to_goal) - self.yaw)
+            # take into account orientation of bot before turning
+            #self.rotatebot(math.degrees(angle_to_goal + math.pi - self.yaw))
+=======
             # take into account orientation of bot before turning
             self.rotatebot(math.degrees(angle_to_goal + math.pi - self.yaw))
+>>>>>>> d3ab7fcffb11868194f352b5d4cb16e9273bea1c
             print("finished rotating")  
 
             print('waiting..')
             time.sleep(4)
             print(f"[INITIAL] x_diff = {x_diff}; y_diff = {y_diff}")
             
-            while (abs(x_diff) or abs(y_diff) > 0.1):
+            while (abs(x_diff) > 0.1 or abs(y_diff) > 0.1):
                 twist = Twist()
                 twist.linear.x = speedchange
                 twist.angular.z = 0.0
