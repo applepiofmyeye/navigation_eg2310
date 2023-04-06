@@ -213,9 +213,10 @@ class Main(Node):
         print('in self.go_to') 
 
         try:
-        #speed = Twist()
+            speed = Twist()
             goal = Point()
             path = self.path
+            
             while  path != 0:
                 print(f'{path}')
                 # get checkpoint from the path
@@ -226,25 +227,25 @@ class Main(Node):
                 #goal.x = 5.0
                 #goal.y = 5.0
 
-                #while rclpy.ok():
-                inc_x = goal.x - self.x
-                inc_y = goal.y - self.y
+                while rclpy.ok():
+                    inc_x = goal.x - self.x
+                    inc_y = goal.y - self.y
 
-                angle_to_goal = math.atan2(inc_y, inc_x)
+                    angle_to_goal = math.atan2(inc_y, inc_x)
 
-                print(f'angle to turn: {angle_to_goal}')
+                    print(f'angle to turn: {angle_to_goal}')
 
-                #if abs(angle_to_goal - theta) > 0.1:
-                #    print('turning')
-                 #   speed.linear.x = 0.0
-                  #  speed.angular.z = 0.1
-                #else:
-                 #   print('move forward')
-                  #  speed.linear.x = 0.2
-                   # speed.angular.z = 0.0
+                    if abs(angle_to_goal - self.yaw) > 0.1:
+                        print('turning')
+                        speed.linear.x = 0.0
+                        speed.angular.z = 0.1
+                    else:
+                        print('move forward')
+                        speed.linear.x = 0.2
+                        speed.angular.z = 0.0
 
                 # to turn:
-                self.rotatebot(angle_to_goal)
+                #self.rotatebot(angle_to_goal)
 
 
                 # to move forward
