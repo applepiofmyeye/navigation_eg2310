@@ -37,7 +37,7 @@ GPIO.setup(21, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 # constants
 rotatechange = 0.1
-speedchange = 0.02
+speedchange = 0.03
 occ_bins = [-1, 0, 100, 101]
 stop_distance = 0.25
 front_angle = 30
@@ -74,15 +74,11 @@ class AutoNav(Node):
         self.roll = 0
         self.pitch = 0
         self.yaw = 0
-
+     
         self.x = 0.0
         self.y = 0.0
-        self.odom_x = 0.0
-        self.odom_y = 0.0
-        self.odom_roll = 0
-        self.odom_pitch = 0
-        self.odom_yaw = 0
 
+        self.going_back = False
         self.sleeprate = 0.25
         self.rate = 10
         self.rc = self.create_rate(self.rate)
@@ -160,19 +156,21 @@ class AutoNav(Node):
 
         #configure the paths to take for each checkpoint
         if (table == '1'):
-            self.path = 0
-        elif (table == '2' or table == '3'):
-            self.path = 807060502
+            self.path = 30201
+        elif (table == '2'):
+            self.path = 4030201
+        elif (table == '3'):
+            self.path = 1
         elif (table == '4'):
-            self.path = 90807060502
+            self.path = 705
         elif (table == '5'):
-            self.path = 40302
+            self.path = 30201
         elif (table == '6'):
-            self.path = 201
+            self.path = 9080705
         elif (table == '7'):
-            self.path = 201 
-        loadstatus = not bool(GPIO.input(21))
-        while not loadstatus:
+            self.path = 201
+        loadstatus = bool(GPIO.input(21))
+        while loadstatus:
             print(f'Can loaded: {loadstatus}')
             time.sleep(0.001)
         self.mover()
@@ -259,7 +257,7 @@ class AutoNav(Node):
         # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
         # if the rotation direction was 1.0, then we will want to stop when the c_dir_diff
         # becomes -1.0, and vice versa
-        while(abs(current_yaw - target_yaw) > 0.1):
+        while(abs(current_yaw - target_yaw) > 0.13):
             # allow the callback functions to run
             rclpy.spin_once(self)
             current_yaw = self.yaw
@@ -283,7 +281,7 @@ class AutoNav(Node):
         # self.get_logger().info('In pick_direction')
         if self.laser_range.size != 0:
             # use nanargmax as there are nan's in laser_range added to replace 0's
-            lr2i = np.nanargmin(self.laser_range)
+            lr2i = np.nanargmin(self.laser_range[front_angles])
             self.get_logger().info('Picked direction: %d %f m' % (lr2i, self.laser_range[lr2i]))
         else:
             lr2i = 0
@@ -318,6 +316,8 @@ class AutoNav(Node):
 
         # start moving
         self.get_logger().info('Start moving')
+        
+        
         twist = Twist()
         twist.linear.x = speedchange
         twist.angular.z = 0.0
@@ -325,6 +325,8 @@ class AutoNav(Node):
         # reliably with this
         time.sleep(1)
         self.publisher_.publish(twist)
+        time.sleep(1)
+        self.stopbot()
         self.mqttclient.publish(self.DOCK_TOPIC, "Home", qos=0, retain=False)
 
         
@@ -373,7 +375,7 @@ class AutoNav(Node):
             time.sleep(4)
             print(f"[INITIAL] x_diff = {x_diff}; y_diff = {y_diff}")
             
-            while (abs(x_diff) > 0.1 or abs(y_diff) > 0.1):
+            while (abs(x_diff) > 0.13 or abs(y_diff) > 0.13):
                 twist = Twist()
                 twist.linear.x = speedchange
                 twist.angular.z = 0.0
@@ -384,7 +386,11 @@ class AutoNav(Node):
                 x_diff = goal_x - self.x 
                 y_diff = goal_y - self.y
             self.stopbot()
-        self.dock_to_table()
+        if not self.going_back:
+            self.dock_to_table()
+        #else:
+         #   self.retire()
+            
 
     def go_to_table_6(self):
         rclpy.spin_once(self)
@@ -422,30 +428,22 @@ class AutoNav(Node):
         print('docking..')
         rclpy.spin_once(self)
         time.sleep(1)
-        if (self.table == '2'):
-            self.rotatebot(-90 - math.degrees(self.yaw))
-        elif (self.table == '3' or self.table == '4'):
-            self.rotatebot(90 - math.degrees(self.yaw))
-        elif (self.table == '6'):
-            self.go_to_table_6() 
+        if (self.table == '6'):
+            self.go_to_table_6()
         self.pick_shortest_direction()
+        while not bool(GPIO.input(21)):
+            time.sleep(0.001)
+        self.return_home() 
 
-    #def dock_assist(self, stop_d):
-        #twist = Twist()
-#get distance from different directions 
-        #front = np.nan_to_num(self.laser_range[0], nan=3.5 ,posinf=3.5)
-        #frontright = np.nan_to_num(self.laser_range[FRONT_RIGHT], nan=3.5 ,posinf=3.5)
-        #frontleft = np.nan_to_num(self.laser_range[FRONT_LEFT], nan=3.5 ,posinf=3.5)
-        #frontfrontleft = np.nan_to_num(self.laser_range[FRONT_FRONT_LEFT], nan=3.5 ,posinf=3.5)
-        #left = np.nan_to_num(self.laser_range[90], nan=3.5 ,posinf=3.5)
-        #right = np.nan_to_num(self.laser_range[270], nan=3.5 ,posinf=3.5)
-
-
-
+    def return_home(self):
+        self.going_back = True
+        path_string = str(self.path)
+        path_string = path_string[::-1]
+        self.path = int(path_string)
+        self.traverse_waypoints()
     
-
+    #def retire(self):
             
-
 
     def mover(self):
         try:
