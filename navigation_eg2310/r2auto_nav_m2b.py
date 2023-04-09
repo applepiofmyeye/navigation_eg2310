@@ -247,7 +247,10 @@ class AutoNav(Node):
         # set linear speed to zero so the TurtleBot rotates on the spot
         twist.linear.x = 0.0
         # set the direction to rotate
-        twist.angular.z = rotatechange
+        if (rot_angle > 180):
+            twist.angular.z = -rotatechange
+        else:
+            twist.angular.z = rotatechange
         time.sleep(1)
         # start rotation
         self.publisher_.publish(twist)

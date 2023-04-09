@@ -358,17 +358,14 @@ class AutoNav(Node):
             angle_to_goal = math.atan2(y_diff, x_diff)
 
             print(f"angle_to_goal = {angle_to_goal}")
-<<<<<<< HEAD
             angle = angle_to_goal - math.degrees(self.yaw)
             self.get_logger().info(f'angle to turn: {angle}')
             self.rotatebot(angle)
             #self.rotatebot(math.degrees(angle_to_goal) - self.yaw)
             # take into account orientation of bot before turning
             #self.rotatebot(math.degrees(angle_to_goal + math.pi - self.yaw))
-=======
             # take into account orientation of bot before turning
             self.rotatebot(math.degrees(angle_to_goal + math.pi - self.yaw))
->>>>>>> d3ab7fcffb11868194f352b5d4cb16e9273bea1c
             print("finished rotating")  
 
             print('waiting..')
