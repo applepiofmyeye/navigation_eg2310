@@ -36,8 +36,8 @@ GPIO.setmode(GPIO.BCM) # for microswitch
 GPIO.setup(21, GPIO.IN, pull_up_down=GPIO.PUD_UP) 
 
 # constants
-rotatechange = 0.15
-speedchange = 0.08
+rotatechange = 0.3
+speedchange = 0.2
 occ_bins = [-1, 0, 100, 101]
 stop_distance = 0.25
 front_angle = 30
@@ -156,17 +156,17 @@ class AutoNav(Node):
 
         #configure the paths to take for each checkpoint
         if (table == '1'):
-            self.path = 201
+            self.path = 30201
         elif (table == '2'):
             self.path = 40302
         elif (table == '3'):
             self.path = 1
         elif (table == '4'):
-            self.path = 4030201
+            self.path = 705
         elif (table == '5'):
             self.path = 30201
         elif (table == '6'):
-            self.path = 60504030201
+            self.path = 9080705
         elif (table == '7'):
             self.path = 201
         loadstatus = bool(GPIO.input(21))
@@ -185,7 +185,9 @@ class AutoNav(Node):
         self.y = position.y
         orientation_quat =  msg.orientation
         self.roll, self.pitch, self.yaw = euler_from_quaternion(orientation_quat.x, orientation_quat.y, orientation_quat.z, orientation_quat.w)
-							 
+        if self.yaw < 0:
+            self.yaw += math.pi
+
 
     def occ_callback(self, msg):
         self.get_logger().info('In occ_callback')
@@ -216,142 +218,85 @@ class AutoNav(Node):
         # replace 0's with nan
         self.laser_range[self.laser_range==0] = np.nan
 
-   
-    # rotate the bot a specified angle
-   
+
     # function to rotate the TurtleBot
     def rotatebot(self, rot_angle):
-        self.get_logger().info('In rotatebot')
+        # self.get_logger().info('In rotatebot')
         # create Twist object
         twist = Twist()
-        
+        print(f'rot_angle: {rot_angle}')
         # get current yaw angle
         current_yaw = self.yaw
         # log the info
         self.get_logger().info('Current: %f' % math.degrees(current_yaw))
         # we are going to use complex numbers to avoid problems when the angles go from
         # 360 to 0, or from -180 to 180
-        c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
-        # calculate desired yaw
-        target_yaw = current_yaw + math.radians(rot_angle)
-        
-        #if current_yaw < 0:
-        #    target_yaw *= 95 / 100
-        #else:
-        #    target_yaw *= 100 / 95
-        print(rot_angle)
-        # convert to complex notation
-        c_target_yaw = complex(math.cos(target_yaw),math.sin(target_yaw))
-        self.get_logger().info('Desired: %f' % math.degrees(cmath.phase(c_target_yaw)))
-        # divide the two complex numbers to get the change in direction
-        c_change = c_target_yaw / c_yaw
-        # get the sign of the imaginary component to figure out which way we have to turn
-        c_change_dir = np.sign(c_change.imag)
-        # set linear speed to zero so the TurtleBot rotates on the spot
-        twist.linear.x = 0.0
-        # set the direction to rotate
-        twist.angular.z = c_change_dir * rotatechange
-        # start rotation
-        self.publisher_.publish(twist)
-
-        # we will use the c_dir_diff variable to see if we can stop rotating
-        c_dir_diff = c_change_dir
-        self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
-        # if the rotation direction was 1.0, then we will want to stop when the c_dir_diff
-        # becomes -1.0, and vice versa
-        while(c_change_dir * c_dir_diff > 0):
-            # allow the callback functions to run
-            rclpy.spin_once(self)
-            current_yaw = self.yaw
-            # convert the current yaw to complex form
-            c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
-            # self.get_logger().info('Current Yaw: %f' % math.degrees(current_yaw))
-            # get difference in angle between current and target
-            c_change = c_target_yaw / c_yaw
-            # get the sign to see if we can stop
-            c_dir_diff = np.sign(c_change.imag)
-            self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
-
-        self.get_logger().info('End Yaw: %f' % math.degrees(current_yaw))
-        # set the rotation speed to 0
-        twist.angular.z = 0.0
-        # stop the rotation
-        self.publisher_.publish(twist)
- 
-    # function to rotate the TurtleBot
-    #def rotatebot(self, rot_angle):
-        #self.get_logger().info('In rotatebot')
-        # create Twist object
-        #twist = Twist()
-        #print(f'rot_angle: {rot_angle}')
-        # get current yaw angle
-        #current_yaw = self.yaw
-        # log the info
-        #self.get_logger().info('Current: %f' % math.degrees(current_yaw))
-        # we are going to use complex numbers to avoid problems when the angles go from
-        # 360 to 0, or from -180 to 180
         #c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
         # calculate desired yaw
         
-        #target_yaw = (current_yaw + math.radians(rot_angle))
-        #print(target_yaw)
-        #print("help" + str(rot_angle))
+        target_yaw = (current_yaw + math.radians(rot_angle))
+        print(target_yaw)
+        print("help" + str(rot_angle))
         #if target_yaw > math.pi:
          #   target_yaw -= 2 * math.pi
             
         # convert to complex notation
-        #c_target_yaw = complex(math.cos(target_yaw),math.sin(target_yaw))
-        #self.get_logger().info('Desired: %f' % math.degrees(cmath.phase(c_target_yaw)))
+        c_target_yaw = complex(math.cos(target_yaw),math.sin(target_yaw))
+        self.get_logger().info('Desired: %f' % math.degrees(cmath.phase(c_target_yaw)))
         # divide the two complex numbers to get the change in direction
         #c_change = c_target_yaw / c_yaw
         # get the sign of the imaginary component to figure out which way we have to turn
         #c_change_dir = np.sign(c_change.imag)
         # set linear speed to zero so the TurtleBot rotates on the spot
-        #twist.linear.x = 0.0
-        #sign = 1
+        twist.linear.x = 0.0
+        sign = 1
         # set the direction to rotate
-        #if (current_yaw and target_yaw > 0) or (current_yaw and target_yaw < 0):
-        #    if abs(current_yaw) > abs(target_yaw):
-        #        sign = -1
+        #if current_yaw and target_yaw > 0:
+         #   if current_yaw > target_yaw:
+          #      sign = -1
 									
-        #elif abs(current_yaw) + abs(target_yaw) < math.pi:
-            #sign = -1
+        #elif current_yaw and target_yaw < 0:
+         #   if current_yaw < target_yaw:
+          #      sign = -1
+        #elif current_yaw > 0 and target_yaw < 0:
+         #   sign = -1
 
         #if target_yaw > math.pi:
-        #    target_yaw = math.pi
+         #   target_yaw = math.pi
         #elif target_yaw < -math.pi:
-        #   target_yaw = -math.pi
-							
-        #twist.angular.z = sign * rotatechange
-        #time.sleep(1)
+         #   target_yaw = -math.pi
+        if target_yaw < current_yaw:
+            sign = -1
+        twist.angular.z = sign * rotatechange
+        time.sleep(1)
         # start rotation
-        #self.publisher_.publish(twist)
+        self.publisher_.publish(twist)
 
         # we will use the c_dir_diff variable to see if we can stop rotating
         #c_dir_diff = c_change_dir
         # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
         # if the rotation direction was 1.0, then we will want to stop when the c_dir_diff
         # becomes -1.0, and vice versa
-        #while(abs(current_yaw - target_yaw) > 0.15):
+        while(abs(current_yaw - target_yaw) > 0.15):
             # allow the callback functions to run
-            #rclpy.spin_once(self)
-            #current_yaw = self.yaw
+            rclpy.spin_once(self)
+            current_yaw = self.yaw
             # convert the current yaw to complex form
             #c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
-            #self.get_logger().info('Current Yaw: %f' % math.degrees(current_yaw))
+            # self.get_logger().info('Current Yaw: %f' % math.degrees(current_yaw))
             # get difference in angle between current and target
-            #print(f'current_yaw = {current_yaw}; target_yaw = {target_yaw}')
+            print(f'current_yaw = {current_yaw}; target_yaw = {target_yaw}')
             #c_change = c_target_yaw / c_yaw
             # get the sign to see if we can stop
             #c_dir_diff = np.sign(c_change.imag)
             #self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
 
-        #self.get_logger().info('End Yaw: %f' % math.degrees(current_yaw))
+        self.get_logger().info('End Yaw: %f' % math.degrees(current_yaw))
         # set the rotation speed to 0
-        #twist.angular.z = 0.0
-        #time.sleep(1)
+        twist.angular.z = 0.0
+        time.sleep(1)
         # stop the rotation
-        #self.publisher_.publish(twist)
+        self.publisher_.publish(twist)
     def pick_direction(self):
         # self.get_logger().info('In pick_direction')
         if self.laser_range.size != 0:
@@ -426,7 +371,7 @@ class AutoNav(Node):
             print(f"[CURRENT CHECKPOINT]: {checkpoint}")
             #allow the callback functions to run
             rclpy.spin_once(self)
-            time.sleep(5)
+            time.sleep(10)
             rclpy.spin_once(self)
 
             goal_x = waypoints[checkpoint][0]
@@ -435,42 +380,36 @@ class AutoNav(Node):
             x_diff = goal_x - self.x
             y_diff = goal_y - self.y
 
+            angle_to_goal = math.atan2(y_diff, x_diff)
+            angle = math.degrees(angle_to_goal)
+            print(f"angle in degreessssssssss = {angle}")
+            print(f'SOMETHING {angle_to_goal}! SELF.YAW: {self.yaw}')
             # take into account orientation of bot before turning
-                
-
-            
-            while (abs(x_diff) > 0.2 or abs(y_diff) > 0.2):
-                angle_to_goal = math.atan2(y_diff, x_diff)
+            if abs(x_diff) > 0.08 or abs(y_diff) > 0.08:
                 self.rotatebot(math.degrees(angle_to_goal - self.yaw))
-                if abs(x_diff) - abs(y_diff) > 0.2:
-                    while abs(x_diff) > 0.2:
-                        twist = Twist()
-                        twist.linear.x = speedchange
-                        twist.angular.z = 0.0
-                        time.sleep(1)
-                        self.publisher_.publish(twist)
-                        rclpy.spin_once(self)
-                        print(f"[MOVING] x_diff = {x_diff}; y_diff = {y_diff}")
-                        x_diff = goal_x - self.x
-                        y_diff = goal_y - self.y
-                else:
-                    while abs(y_diff) > 0.2:
-                        twist = Twist()
-                        twist.linear.x = speedchange
-                        twist.angular.z = 0.0
-                        time.sleep(1)
-                        self.publisher_.publish(twist)
-                        rclpy.spin_once(self)
-                        print(f"[MOVING] x_diff = {x_diff}; y_diff = {y_diff}")
-                        x_diff = goal_x - self.x
-                        y_diff = goal_y - self.y
-                rclpy.spin_once(self)
+            print("finished rotating")  
 
+            print('waiting..')
+            time.sleep(4)
+            print(f"[INITIAL] x_diff = {x_diff}; y_diff = {y_diff}")
+            
+            while (abs(x_diff) > 0.15 or abs(y_diff) > 0.15):
+                twist = Twist()
+                twist.linear.x = speedchange
+                twist.angular.z = 0.0
+                time.sleep(1)
+                self.publisher_.publish(twist)
+                rclpy.spin_once(self)
+                print(f"[MOVING] x_diff = {x_diff}; y_diff = {y_diff}")
+                x_diff = goal_x - self.x 
+                y_diff = goal_y - self.y
             self.stopbot()
-        
         if not self.going_back:
             self.dock_to_table()
+        #else:
+         #   self.retire()
             
+
     def go_to_table_6(self):
         rclpy.spin_once(self)
         time.sleep(2)
