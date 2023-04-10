@@ -32,12 +32,20 @@ print (waypoints)
 
 #set up MQTT, GPIO settings
 BROKER_IP = '172.20.10.6'
-GPIO.setmode(GPIO.BCM) # for microswitch
+GPIO.setmode(GPIO.BCM)
+
+# microswitch
 GPIO.setup(21, GPIO.IN, pull_up_down=GPIO.PUD_UP) 
+# IR sensors
+GPIO.setup(17, GPIO.IN)
+GPIO.setup(27,GPIO.IN)
+
 
 # constants
 rotatechange = 0.15
 speedchange = 0.08
+rotatechange_lf = 0.1
+speedchange_lf = 0.07
 occ_bins = [-1, 0, 100, 101]
 stop_distance = 0.25
 front_angle = 30
@@ -270,7 +278,7 @@ class AutoNav(Node):
             c_change = c_target_yaw / c_yaw
             # get the sign to see if we can stop
             c_dir_diff = np.sign(c_change.imag)
-            self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
+            #self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
 
         self.get_logger().info('End Yaw: %f' % math.degrees(current_yaw))
         # set the rotation speed to 0
@@ -439,11 +447,11 @@ class AutoNav(Node):
                 
 
             
-            while (abs(x_diff) > 0.2 or abs(y_diff) > 0.2):
+            while (abs(x_diff) > 0.15 or abs(y_diff) > 0.15):
                 angle_to_goal = math.atan2(y_diff, x_diff)
                 self.rotatebot(math.degrees(angle_to_goal - self.yaw))
-                if abs(x_diff) - abs(y_diff) > 0.2:
-                    while abs(x_diff) > 0.2:
+                if abs(x_diff) - abs(y_diff) > 0.15:
+                    while abs(x_diff) > 0.1:
                         twist = Twist()
                         twist.linear.x = speedchange
                         twist.angular.z = 0.0
@@ -470,6 +478,8 @@ class AutoNav(Node):
         
         if not self.going_back:
             self.dock_to_table()
+        else:
+            self.dock_to_dispenser()
             
     def go_to_table_6(self):
         rclpy.spin_once(self)
@@ -509,7 +519,10 @@ class AutoNav(Node):
         time.sleep(1)
         if (self.table == '6'):
             self.go_to_table_6()
-        self.pick_shortest_direction()
+        if (self.table == '5'):
+            self.pick_direction()
+        else:
+            self.pick_shortest_direction()
         while not bool(GPIO.input(21)):
             time.sleep(0.001)
         self.return_home() 
@@ -520,8 +533,43 @@ class AutoNav(Node):
         path_string = path_string[::-1]
         self.path = int(path_string)
         self.traverse_waypoints()
+
+    def dock_to_dispenser(self):
+        twist = Twist()
+        # move forward first,
+        twist.linear.x = rotatechange_lf
+        twist.angular.z = 0.0
+        time.sleep(1)
+
+        self.publisher_.publish(twist)
+        self.line_following()
+        
+
+    def line_following(self):
+        while True:
+            left_detect = GPIO.input(17)
+            right_detect = GPIO.input(27)
+            twist = Twist()
+            if left_detect == 0 and right_detect == 0:
+                twist.linear.x = 0.07
+                twist.angular.z = 0.0
+                self.publisher_.publish(twist)
+            elif left_detect == 1 and right_detect == 0:
+                twist.linear.x = 0.0
+                twist.angular.z = 0.1
+                self.publisher_.publish(twist)
+            elif left_detect == 0 and right_detect == 1:
+                twist.linear.x = 0.0
+                twist.angular.z = (-1) * 0.1
+                self.publisher_.publish(twist)
+            elif left_detect == 1 and right_detect == 1:
+                break
+        print("reached destination, stopping.")
+        twist = Twist()
+        twist.linear.x = 0.0
+        twist.angular.z = 0.0
+        self.publisher_.publish(twist)
     
-    #def retire(self):
             
 
     def mover(self):
