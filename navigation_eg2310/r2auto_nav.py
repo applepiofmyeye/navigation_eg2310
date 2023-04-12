@@ -168,12 +168,10 @@ class AutoNav(Node):
             self.path = 4030201
         elif (table == '6'):
             self.path = 111009080706050201
-<<<<<<< HEAD
         elif (table == '7'):
             self.path = 2           
 =======
             
->>>>>>> d3ab7fcffb11868194f352b5d4cb16e9273bea1c
         self.mover()
 
 
