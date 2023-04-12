@@ -3,7 +3,6 @@
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-#
 #     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
@@ -32,26 +31,21 @@ print (waypoints)
 
 #set up MQTT, GPIO settings
 BROKER_IP = '172.20.10.6'
-GPIO.setmode(GPIO.BCM)
-
-# microswitch
+GPIO.setmode(GPIO.BCM) # for microswitch
 GPIO.setup(21, GPIO.IN, pull_up_down=GPIO.PUD_UP) 
-# IR sensors
 GPIO.setup(17, GPIO.IN)
-GPIO.setup(27,GPIO.IN)
-
-
+GPIO.setup(27, GPIO.IN)
 # constants
-rotatechange = 0.15
-speedchange = 0.08
-rotatechange_lf = 0.1
-speedchange_lf = 0.07
+rotatechange = 0.2
+speedchange = 0.12
 occ_bins = [-1, 0, 100, 101]
-stop_distance = 0.25
+stop_distance = 0.35
 front_angle = 30
 front_angles = range(-front_angle,front_angle+1,1)
 scanfile = 'lidar.txt'
 mapfile = 'map.txt'
+rotatechange_lf = 0.1
+speedchange_lf = 0.08
 # code from https://automaticaddison.com/how-to-convert-a-quaternion-into-euler-angles-in-python/
 def euler_from_quaternion(x, y, z, w):
     """
@@ -164,31 +158,27 @@ class AutoNav(Node):
 
         #configure the paths to take for each checkpoint
         if (table == '1'):
-            self.path = 201
+            self.path = 30201
         elif (table == '2'):
-            self.path = 40302
+            self.path = 4030201
         elif (table == '3'):
-            self.path = 1
+            self.path = 4030201
         elif (table == '4'):
             self.path = 40201
         elif (table == '5'):
             self.path = 30201
         elif (table == '6'):
-            self.path = 605040201
+            self.path = 60504030201
         elif (table == '7'):
-            self.path = 201
-        loadstatus = bool(GPIO.input(21))
-        while loadstatus:
-            print(f'Can loaded: {loadstatus}')
-            time.sleep(0.001)
+            self.path = 4030201
         self.mover()
 
 
     def m2b_callback(self, msg):
         
         position = msg.position
-        self.get_logger().info('self x : %f ' % position.x)
-        self.get_logger().info('self y : %f ' % position.y)
+        #self.get_logger().info('self x : %f ' % position.x)
+        #self.get_logger().info('self y : %f ' % position.y)
         self.x = position.x
         self.y = position.y
         orientation_quat =  msg.orientation
@@ -196,7 +186,6 @@ class AutoNav(Node):
 							 
 
     def occ_callback(self, msg):
-        self.get_logger().info('In occ_callback')
         # create numpy array
         msgdata = np.array(msg.data)
         # compute histogram to identify percent of bins with -1
@@ -216,7 +205,6 @@ class AutoNav(Node):
 
 
     def scan_callback(self, msg):
-        self.get_logger().info('In scan_callback')
         # create numpy array
         self.laser_range = np.array(msg.ranges)
         # print to file
@@ -243,10 +231,6 @@ class AutoNav(Node):
         # calculate desired yaw
         target_yaw = current_yaw + math.radians(rot_angle)
         
-        #if current_yaw < 0:
-        #    target_yaw *= 95 / 100
-        #else:
-        #    target_yaw *= 100 / 95
         print(rot_angle)
         # convert to complex notation
         c_target_yaw = complex(math.cos(target_yaw),math.sin(target_yaw))
@@ -262,126 +246,42 @@ class AutoNav(Node):
         # start rotation
         self.publisher_.publish(twist)
 
-        # we will use the c_dir_diff variable to see if we can stop rotating
-        c_dir_diff = c_change_dir
-        self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
-        # if the rotation direction was 1.0, then we will want to stop when the c_dir_diff
-        # becomes -1.0, and vice versa
-        while(c_change_dir * c_dir_diff > 0):
-            # allow the callback functions to run
+        while abs(current_yaw - target_yaw) > 0.1:
             rclpy.spin_once(self)
             current_yaw = self.yaw
-            # convert the current yaw to complex form
-            c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
-            # self.get_logger().info('Current Yaw: %f' % math.degrees(current_yaw))
-            # get difference in angle between current and target
-            c_change = c_target_yaw / c_yaw
-            # get the sign to see if we can stop
-            c_dir_diff = np.sign(c_change.imag)
-            #self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
-
-        self.get_logger().info('End Yaw: %f' % math.degrees(current_yaw))
+            if abs(current_yaw - target_yaw) < 0.5:
+                twist.linear.x = 0.0
+                twist.angular.z = c_change_dir * rotatechange *0.6
+                self.publisher_.publish(twist)
+            
         # set the rotation speed to 0
         twist.angular.z = 0.0
         # stop the rotation
         self.publisher_.publish(twist)
  
-    # function to rotate the TurtleBot
-    #def rotatebot(self, rot_angle):
-        #self.get_logger().info('In rotatebot')
-        # create Twist object
-        #twist = Twist()
-        #print(f'rot_angle: {rot_angle}')
-        # get current yaw angle
-        #current_yaw = self.yaw
-        # log the info
-        #self.get_logger().info('Current: %f' % math.degrees(current_yaw))
-        # we are going to use complex numbers to avoid problems when the angles go from
-        # 360 to 0, or from -180 to 180
-        #c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
-        # calculate desired yaw
-        
-        #target_yaw = (current_yaw + math.radians(rot_angle))
-        #print(target_yaw)
-        #print("help" + str(rot_angle))
-        #if target_yaw > math.pi:
-         #   target_yaw -= 2 * math.pi
-            
-        # convert to complex notation
-        #c_target_yaw = complex(math.cos(target_yaw),math.sin(target_yaw))
-        #self.get_logger().info('Desired: %f' % math.degrees(cmath.phase(c_target_yaw)))
-        # divide the two complex numbers to get the change in direction
-        #c_change = c_target_yaw / c_yaw
-        # get the sign of the imaginary component to figure out which way we have to turn
-        #c_change_dir = np.sign(c_change.imag)
-        # set linear speed to zero so the TurtleBot rotates on the spot
-        #twist.linear.x = 0.0
-        #sign = 1
-        # set the direction to rotate
-        #if (current_yaw and target_yaw > 0) or (current_yaw and target_yaw < 0):
-        #    if abs(current_yaw) > abs(target_yaw):
-        #        sign = -1
-									
-        #elif abs(current_yaw) + abs(target_yaw) < math.pi:
-            #sign = -1
-
-        #if target_yaw > math.pi:
-        #    target_yaw = math.pi
-        #elif target_yaw < -math.pi:
-        #   target_yaw = -math.pi
-							
-        #twist.angular.z = sign * rotatechange
-        #time.sleep(1)
-        # start rotation
-        #self.publisher_.publish(twist)
-
-        # we will use the c_dir_diff variable to see if we can stop rotating
-        #c_dir_diff = c_change_dir
-        # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
-        # if the rotation direction was 1.0, then we will want to stop when the c_dir_diff
-        # becomes -1.0, and vice versa
-        #while(abs(current_yaw - target_yaw) > 0.15):
-            # allow the callback functions to run
-            #rclpy.spin_once(self)
-            #current_yaw = self.yaw
-            # convert the current yaw to complex form
-            #c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
-            #self.get_logger().info('Current Yaw: %f' % math.degrees(current_yaw))
-            # get difference in angle between current and target
-            #print(f'current_yaw = {current_yaw}; target_yaw = {target_yaw}')
-            #c_change = c_target_yaw / c_yaw
-            # get the sign to see if we can stop
-            #c_dir_diff = np.sign(c_change.imag)
-            #self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
-
-        #self.get_logger().info('End Yaw: %f' % math.degrees(current_yaw))
-        # set the rotation speed to 0
-        #twist.angular.z = 0.0
-        #time.sleep(1)
-        # stop the rotation
-        #self.publisher_.publish(twist)
-    def pick_direction(self):
-        # self.get_logger().info('In pick_direction')
-        if self.laser_range.size != 0:
-            # use nanargmax as there are nan's in laser_range added to replace 0's
-            lr2i = np.nanargmin(self.laser_range[front_angles])
-            self.get_logger().info('Picked direction: %d %f m' % (lr2i, self.laser_range[lr2i]))
-        else:
-            lr2i = 0
-            self.get_logger().info('No data!')
-
-        # rotate to that direction
-        self.rotatebot(float(lr2i))
+    def pick_lr_direction(self, r_l):
 
         # start moving
-        self.get_logger().info('Start moving')
+        self.get_logger().info('Start moving') 
         twist = Twist()
-        twist.linear.x = speedchange
-        twist.angular.z = 0.0
-        # not sure if this is really necessary, but things seem to work more
-        # reliably with this
-        time.sleep(1)
+        twist.linear.x = 0.0
+        twist.angular.z = r_l * 0.5 * rotatechange
         self.publisher_.publish(twist)
+        while self.laser_range[r_l * 5] < self.laser_range[0]:
+            rclpy.spin_once(self)
+            
+
+        self.stopbot()
+        idx = np.nanargmin(self.laser_range)
+        
+        while self.laser_range[idx] > float(stop_distance) :
+            twist = Twist()
+            twist.linear.x = speedchange
+            twist.angular.z = 0.0
+            rclpy.spin_once(self)
+            self.publisher_.publish(twist)
+            idx = np.nanargmin(self.laser_range)
+        self.stopbot() 
 
     def pick_shortest_direction(self):
         if self.laser_range.size != 0:
@@ -406,15 +306,47 @@ class AutoNav(Node):
         twist.angular.z = 0.0
         # not sure if this is really necessary, but things seem to work more
         # reliably with this
-        time.sleep(1)
+        #TODO : add stopping condition
         self.publisher_.publish(twist)
-        time.sleep(1)
         self.stopbot()
-        self.mqttclient.publish(self.DOCK_TOPIC, "Home", qos=0, retain=False)
 
-        
+    def pick_direction(self, direction):
+        print('in pick_direction')
+        if direction == 0:
+             angle = front_angles
+        elif direction == 1:
+             #angle = range(45, 135, 1)
+             angle = range(45, 135, 1)
+        else:
+            #angle = range(-135, -45, 1)
+            angle = range(-135, -45, 1) 
+        lri = np.nanargmin(self.laser_range[angle])
+        if direction != 0:
+            gg = direction * 45.0
+        else:
+            gg = 0.0
+        self.rotatebot(float(lri) + gg)
+        twist = Twist()
+        twist.linear.x = speedchange
+        twist.angular.z = 0.0
+        self.publisher_.publish(twist)
 
+        while rclpy.ok():
+            if self.laser_range.size != 0:
+                print('checking for stopping distance')
+                rclpy.spin_once(self)
 
+                lri = (self.laser_range[angle] < stop_distance).nonzero()
+                print(lri)
+                if len(lri[0]) > 0:
+                    self.get_logger().info('stopping')
+                    twist.linear.x = 0.0
+                    twist.angular.z = 0.0
+                    self.publisher_.publish(twist)
+                    break 
+
+        rclpy.spin_once(self)
+        self.stopbot()
     def stopbot(self):
         self.get_logger().info('In stopbot')
         # publish to cmd_vel to move TurtleBot
@@ -434,8 +366,9 @@ class AutoNav(Node):
             print(f"[CURRENT CHECKPOINT]: {checkpoint}")
             #allow the callback functions to run
             rclpy.spin_once(self)
-            time.sleep(5)
+            time.sleep(3)
             rclpy.spin_once(self)
+            
 
             goal_x = waypoints[checkpoint][0]
             goal_y = waypoints[checkpoint][1]  
@@ -446,44 +379,58 @@ class AutoNav(Node):
             # take into account orientation of bot before turning
                 
 
-            
             while (abs(x_diff) > 0.15 or abs(y_diff) > 0.15):
                 angle_to_goal = math.atan2(y_diff, x_diff)
                 self.rotatebot(math.degrees(angle_to_goal - self.yaw))
                 if abs(x_diff) - abs(y_diff) > 0.15:
-                    while abs(x_diff) > 0.1:
+                    while abs(x_diff) > 0.15:
                         twist = Twist()
                         twist.linear.x = speedchange
+                        if x_diff < 0.25:
+                            twist.linear.x = twist.linear.x * 0.6
                         twist.angular.z = 0.0
                         time.sleep(1)
                         self.publisher_.publish(twist)
+                        print(f'[BEFORE SPIN] x_diff = {x_diff}; y_diff = {y_diff}')
+                        
                         rclpy.spin_once(self)
-                        print(f"[MOVING] x_diff = {x_diff}; y_diff = {y_diff}")
-                        x_diff = goal_x - self.x
-                        y_diff = goal_y - self.y
-                else:
-                    while abs(y_diff) > 0.2:
-                        twist = Twist()
-                        twist.linear.x = speedchange
-                        twist.angular.z = 0.0
-                        time.sleep(1)
-                        self.publisher_.publish(twist)
-                        rclpy.spin_once(self)
-                        print(f"[MOVING] x_diff = {x_diff}; y_diff = {y_diff}")
-                        x_diff = goal_x - self.x
-                        y_diff = goal_y - self.y
-                rclpy.spin_once(self)
 
+                        rclpy.spin_once(self)
+                        x_diff = goal_x - self.x
+                        y_diff = goal_y - self.y
+                        print(f"[AFTER SPIN] x_diff = {x_diff}; y_diff = {y_diff}")
+                       
+                elif abs(y_diff) - abs(x_diff) > 0.15:
+                    while abs(y_diff) > 0.15:
+                        twist = Twist()
+                        twist.linear.x = speedchange
+                        if y_diff < 0.25:
+                            twist.linear.x = twist.linear.x * 0.6
+                        twist.angular.z = 0.0
+                        time.sleep(1)
+                        self.publisher_.publish(twist)
+                        print(f'[BEFORE SPIN] x_diff = {x_diff}; y_diff = {y_diff}')
+                        
+                        rclpy.spin_once(self)
+                        rclpy.spin_once(self)
+                        x_diff = goal_x - self.x
+                        y_diff = goal_y - self.y
+
+                        print(f"[MOVING] x_diff = {x_diff}; y_diff = {y_diff}")
+                twist = Twist()       
+                twist.linear.x = 0.0
+                twist.angular.z = 0.0
+                self.publisher_.publish(twist)
+                x_diff = goal_x - self.x
+                y_diff = goal_y - self.y
             self.stopbot()
         
         if not self.going_back:
             self.dock_to_table()
-        else:
-            self.dock_to_dispenser()
             
     def go_to_table_6(self):
         rclpy.spin_once(self)
-        time.sleep(2)
+        time.sleep(1)
         goal_x = self.x + 0.5
         x_diff = goal_x - self.x
 
@@ -507,22 +454,27 @@ class AutoNav(Node):
             time.sleep(1)
             self.publisher_.publish(twist)
             rclpy.spin_once(self)
-            time.sleep(1)
-            rclpy.spin_once(self)
+            #rclpy.spin_once(self)
             x_diff = goal_x - self.x
             lr2i = np.nanargmin(self.laser_range)
         self.stopbot()
+        self.pick_shortest_direction()
         
     def dock_to_table(self):
         print('docking..')
         rclpy.spin_once(self)
         time.sleep(1)
-        if (self.table == '6'):
-            self.go_to_table_6()
-        if (self.table == '5'):
-            self.pick_direction()
+        if (self.table == '1'):
+            self.pick_direction(0)
+        elif self.table == '2':
+            self.pick_direction(1)
+        elif self.table == '3' or '4':
+            self.pick_direction(-1)
+        elif self.table == '5':
+            self.pick_direction(0)
         else:
-            self.pick_shortest_direction()
+            self.go_to_table_6() 
+
         while not bool(GPIO.input(21)):
             time.sleep(0.001)
         self.return_home() 
@@ -533,34 +485,36 @@ class AutoNav(Node):
         path_string = path_string[::-1]
         self.path = int(path_string)
         self.traverse_waypoints()
-
+    
     def dock_to_dispenser(self):
         twist = Twist()
         # move forward first,
-        twist.linear.x = rotatechange_lf
+        twist.linear.x = speedchange_lf
         twist.angular.z = 0.0
         time.sleep(1)
 
         self.publisher_.publish(twist)
-        self.line_following()
-        
 
+        self.line_following()
+        self.mqttclient.loop_start()
+        self.mqttclient.publish(self.DOCK_TOPIC, "Home", qos=0, retain=False)
+        self.mqttclient.loop_stop()
     def line_following(self):
         while True:
             left_detect = GPIO.input(17)
             right_detect = GPIO.input(27)
             twist = Twist()
             if left_detect == 0 and right_detect == 0:
-                twist.linear.x = 0.07
+                twist.linear.x = speedchange_lf
                 twist.angular.z = 0.0
                 self.publisher_.publish(twist)
             elif left_detect == 1 and right_detect == 0:
                 twist.linear.x = 0.0
-                twist.angular.z = 0.1
+                twist.angular.z = rotatechange_lf
                 self.publisher_.publish(twist)
             elif left_detect == 0 and right_detect == 1:
                 twist.linear.x = 0.0
-                twist.angular.z = (-1) * 0.1
+                twist.angular.z = (-1) * rotatechange_lf
                 self.publisher_.publish(twist)
             elif left_detect == 1 and right_detect == 1:
                 break
@@ -569,37 +523,14 @@ class AutoNav(Node):
         twist.linear.x = 0.0
         twist.angular.z = 0.0
         self.publisher_.publish(twist)
-    
-            
+ 
 
     def mover(self):
         try:
-            # initialize variable to write elapsed time to file
-            # contourCheck = 1
-
-            # find direction with the largest distance from the Lidar,
-            # rotate to that direction, and start moving
+            while bool(GPIO.input(21)):
+                print(f'Can not loaded')
+                time.sleep(0.001)
             self.traverse_waypoints()
-            #self.dock_to_table();
-            while rclpy.ok():
-                if self.laser_range.size != 0:
-                    # check distances in front of TurtleBot and find values less
-                    # than stop_distance
-                    lri = (self.laser_range[front_angles]<float(stop_distance)).nonzero()
-                    # self.get_logger().info('Distances: %s' % str(lri))
-
-                    # if the list is not empty
-                    if(len(lri[0])>0):
-                        # stop moving
-                        self.stopbot()
-                        # find direction with the largest distance from the Lidar
-                        # rotate to that direction
-                        # start moving
-                        #self.pick_direction()
-                    
-                # allow the callback functions to run
-                rclpy.spin_once(self)
-
         except Exception as e:
             print(e)
         
@@ -629,4 +560,5 @@ def main(args=None):
 
 
 if __name__ == '__main__':
+        
     main()

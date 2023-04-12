@@ -78,18 +78,20 @@ class Mover(Node):
             right_detect = GPIO.input(27)
             twist = Twist()
             if left_detect == 0 and right_detect == 0:
-                twist.linear.x = 0.07
+                twist.linear.x = 0.06
                 twist.angular.z = 0.0
                 self.publisher_.publish(twist)
             elif left_detect == 1 and right_detect == 0:
-                twist.linear.x = 0.0
+                twist.linear.x = 0.01
                 twist.angular.z = 0.1
                 self.publisher_.publish(twist)
             elif left_detect == 0 and right_detect == 1:
-                twist.linear.x = 0.0
+                twist.linear.x = 0.01
                 twist.angular.z = (-1) * 0.1
                 self.publisher_.publish(twist)
             elif left_detect == 1 and right_detect == 1:
+                twist.linear.x =0.0
+                self.publisher_.publish(twist)
                 break
         print("reached destination, stopping.")
         twist = Twist()
