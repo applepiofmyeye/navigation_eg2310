@@ -24,7 +24,7 @@ import math
 import cmath
 import time
 import pickle
-with open("waypoints_draft.pickle", "rb") as handle: #TODO change to wypoints.pickle
+with open("waypoints_draft.pickle", "rb") as handle:
     waypoints = pickle.load(handle)
 print (waypoints)
 
@@ -168,6 +168,8 @@ class AutoNav(Node):
             self.path = 504
         elif (table == '6'):
             self.path = 10090806
+        elif (table == '7'):
+            self.path = 30201
         self.mover()
 
 
@@ -245,10 +247,10 @@ class AutoNav(Node):
         while abs(current_yaw - target_yaw) > 0.15:
             rclpy.spin_once(self)
             current_yaw = self.yaw
-            if abs(current_yaw - target_yaw) < 1.4:
+            if abs(abs(current_yaw) - abs(target_yaw)) < 0.5:
                 rclpy.spin_once(self)
                 twist.linear.x = 0.0
-                twist.angular.z = c_change_dir * rotatechange * 0.2
+                twist.angular.z = c_change_dir * rotatechange * 0.1
                 self.publisher_.publish(twist)
             
         # set the rotation speed to 0
@@ -355,11 +357,11 @@ class AutoNav(Node):
             # take into account orientation of bot before turning
                 
 
-            while (abs(x_diff) > 0.18 or abs(y_diff) > 0.18):
+            while (abs(x_diff) > 0.2 or abs(y_diff) > 0.2):
                 angle_to_goal = math.atan2(y_diff, x_diff)
                 self.rotatebot(math.degrees(angle_to_goal - self.yaw))
                 if abs(x_diff) > abs(y_diff):
-                    while abs(x_diff) > 0.18:
+                    while abs(x_diff) > 0.2:
                         twist = Twist()
                         twist.linear.x = speedchange
                         if abs(x_diff) < 0.5:
@@ -377,7 +379,7 @@ class AutoNav(Node):
                         print(f"[AFTER SPIN] x_diff = {x_diff}; y_diff = {y_diff}")
                        
                 else:
-                    while abs(y_diff) > 0.18:
+                    while abs(y_diff) > 0.2:
                         twist = Twist()
                         twist.linear.x = speedchange
                         if abs(y_diff) < 0.5:
@@ -444,6 +446,34 @@ class AutoNav(Node):
         print('docking..')
         rclpy.spin_once(self)
         time.sleep(1)
+        if (self.table == '1'):
+            self.pick_direction(0)
+        elif self.table == '2':
+            self.rotatebot(90)
+            twist = Twist()
+            twist.linear.x = 0.1
+            twist.angular.z = 0.0
+            self.publisher_.publish(twist)
+            time.sleep(1)
+            self.stopbot()
+            #self.pick_direction(1)
+        elif self.table == '3':
+            self.pick_direction(0)
+        elif self.table == '4':
+            self.rotatebot(90)
+            twist = Twist()
+            twist.linear.x = 0.1
+            twist.angular.z = 0.0
+            self.publisher_.publish(twist)
+            time.sleep(1)
+            self.stopbot()
+
+            self.pick_direction(1)
+        elif self.table == '5':
+            self.pick_direction(0)
+        else:
+            self.go_to_table_6() 
+
         while not bool(GPIO.input(21)):
             time.sleep(0.001)
         self.return_home() 
@@ -460,14 +490,28 @@ class AutoNav(Node):
     def dock_to_dispenser(self):
 
         rclpy.spin_once(self)
+        self.rotatebot(-math.degrees(self.yaw))
+        if self.table == '1' or '2' or '6':
+            self.rotatebot(90)
+            twist = Twist()
+            twist.linear.x = 0.05
+            twist.angular.z = 0.0
+            self.publisher_.publish(twist)
+            while self.laser_range[0] > 0.3:
+                rclpy.spin_once(self)
+            self.stopbot()
+            self.rotatebot(-math.degrees(self.yaw))
+            rclpy.spin_once(self)
+        self.line_following(1)
         self.going_back = False
         self.mqttclient.loop_start()
         self.mqttclient.publish(self.DOCK_TOPIC, "Home", qos=0, retain=False)
         self.mqttclient.loop_stop()
     
     def line_following(self, sign):
-        speedchange_lf = sign * 0.05
-        rotatechange_lf = sign * 0.1
+        print('in line following')
+        speedchange_lf = sign * 0.1
+        rotatechange_lf = sign * 0.05
         while True:
             left_detect = GPIO.input(17)
             right_detect = GPIO.input(27)
@@ -476,18 +520,22 @@ class AutoNav(Node):
                 twist.linear.x = speedchange_lf
                 twist.angular.z = 0.0
                 self.publisher_.publish(twist)
+                print("!111111111111")
             elif left_detect == 1 and right_detect == 0:
                 twist.linear.x = sign * 0.01
                 twist.angular.z = rotatechange_lf
                 self.publisher_.publish(twist)
+                print("2222222222222")
             elif left_detect == 0 and right_detect == 1:
                 twist.linear.x = sign * 0.01
                 twist.angular.z = (-1) * rotatechange_lf 
                 self.publisher_.publish(twist)
-            elif left_detect == 1 and right_detect == 1: 
-                if sign == 1 and -2.0 < math.degrees(self.yaw) < 2.0:
+                print("333333333333333333")
+            elif left_detect == 1 and right_detect == 1:
+                print("4444444444444444")
+                if sign == 1:
                     break
-                elif sign == 0:
+                elif sign == -1:
                     break
         print("reached destination, stopping.")
         twist = Twist()
@@ -500,15 +548,15 @@ class AutoNav(Node):
             while bool(GPIO.input(21)):
                 print(f'Can not loaded')
                 time.sleep(0.001)
-            twist = Twist()
-            twist.linear.x = -0.2
-            twist.angular.z = 0.0
-            self.publisher_.publish(twist)
-            time.sleep(2)
-            self.stopbot()
+            #twist = Twist()
+            #twist.linear.x = -0.05
+            #twist.angular.z = 0.0
+            #self.publisher_.publish(twist)
+            #time.sleep(1)
+            #self.stopbot()
             #self.line_following(-1)
             self.traverse_waypoints()
-
+            #self.dock_to_dispenser()
         except Exception as e:
             print(e)
         

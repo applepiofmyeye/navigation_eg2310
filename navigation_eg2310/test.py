@@ -20,20 +20,31 @@ from rclpy.node import Node
 import geometry_msgs.msg
 import RPi.GPIO as GPIO
 from geometry_msgs.msg import Twist
+from sensor_msgs.msg import LaserScan
+from rclpy.qos import qos_profile_sensor_data
+import numpy as np
+
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(17, GPIO.IN)
 GPIO.setup(27,GPIO.IN)
-
 
 # constants
 rotatechange = 0.1
 speedchange = 0.07
 
-
 class Mover(Node):
     def __init__(self):
         super().__init__('mover')
         self.publisher_ = self.create_publisher(geometry_msgs.msg.Twist,'cmd_vel',10)
+                # create subscription to track lidar
+        self.scan_subscription = self.create_subscription(
+            LaserScan,
+            'scan',
+            self.scan_callback,
+            qos_profile_sensor_data)
+        self.scan_subscription  # prevent unused variable warning
+        self.laser_range = np.array([])
+
 
 # function to read keyboard input
     def readKey(self):
@@ -46,8 +57,8 @@ class Mover(Node):
                 # check which key was entered
                 if cmd_char == 's':
                     # stop moving
-                    twist.linear.x = 0.08
-                    twist.angular.z = 0.0
+                    twist.linear.x = 0.0
+                    twist.angular.z = 0.1
                 elif cmd_char == 'a':
                     # turn counter-clockwise
                     twist.linear.x = 0.0
@@ -64,13 +75,18 @@ class Mover(Node):
                 
         except Exception as e:
             print(e)
-            
-  # Ctrl-c detected
-        finally:
-         # stop moving
-            twist.linear.x = 0.0
-            twist.angular.z = 0.0
-            self.publisher_.publish(twist)
+            twist.linear.x=0.0
+            twist.angular.z=0.0
+            tme.sleep(0.5)
+            self.publisher_publisher(twist)
+
+    def scan_callback(self, msg):
+        # create numpy array
+        self.laser_range = np.array(msg.ranges)
+        # print to file
+        # np.savetxt(scanfile, self.laser_range)
+        # replace 0's with nan
+        self.laser_range[self.laser_range==0] = np.nan
 
     def line_following(self):
         while True:
@@ -78,21 +94,29 @@ class Mover(Node):
             right_detect = GPIO.input(27)
             twist = Twist()
             if left_detect == 0 and right_detect == 0:
-                twist.linear.x = 0.06
+                twist.linear.x = 0.05
                 twist.angular.z = 0.0
                 self.publisher_.publish(twist)
             elif left_detect == 1 and right_detect == 0:
-                twist.linear.x = 0.01
-                twist.angular.z = 0.1
+                twist.linear.x = 0.0
+                twist.angular.z = 0.05
                 self.publisher_.publish(twist)
             elif left_detect == 0 and right_detect == 1:
-                twist.linear.x = 0.01
-                twist.angular.z = (-1) * 0.1
+                twist.linear.x = 0.0
+                twist.angular.z = (-1) * 0.05
                 self.publisher_.publish(twist)
             elif left_detect == 1 and right_detect == 1:
-                twist.linear.x =0.0
-                self.publisher_.publish(twist)
-                break
+                rclpy.spin_once(self)
+                lr2i = np.nanargmin(self.laser_range)
+                if lr2i == 0:
+                       twist.linear.x =0.0
+                       self.publisher_.publish(twist)
+                       break
+                else:
+                       twist.linear.x = 0.05
+                       twist.angular.z = 0.0
+                       self.publisher_.publish(twist)
+                       break
         print("reached destination, stopping.")
         twist = Twist()
         twist.linear.x = 0.0
