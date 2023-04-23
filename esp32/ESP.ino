@@ -4,6 +4,8 @@
 #include <PubSubClient.h>
 #include <WiFi.h>
 #include <ESP32Servo.h>
+
+
 #define SERVOPIN 13
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -11,12 +13,15 @@
 
 Servo servo;
 int releaseCount = 0;
+int tableNumber = 0;
+
 const char* ssid = "joey (2)";
 const char* password = "12345678";
 const char* mqtt_server = "172.20.10.6";
+
 WiFiClient wifiClient; 
 PubSubClient client(mqtt_server, 1883, wifiClient);
-int tableNumber = 0;
+
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 void callback(char* topic, byte* message, unsigned int length) {
