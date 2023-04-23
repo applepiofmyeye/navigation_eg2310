@@ -24,17 +24,20 @@ import math
 import cmath
 import time
 import pickle
-with open("waypoints_draft.pickle", "rb") as handle: #TODO change to wypoints.pickle
+
+# print waypoints collected from get_waypoints_m2b
+with open("waypoints.pickle", "rb") as handle: 
     waypoints = pickle.load(handle)
 print (waypoints)
 
-#set up MQTT, GPIO settings
+# set up MQTT, GPIO settings
 BROKER_IP = '172.20.10.6'
-GPIO.setmode(GPIO.BCM) # for microswitch
-GPIO.setup(21, GPIO.IN, pull_up_down=GPIO.PUD_UP) 
-GPIO.setup(17, GPIO.IN)
-GPIO.setup(27, GPIO.IN)
-# constants
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(21, GPIO.IN, pull_up_down=GPIO.PUD_UP) # microswitch
+GPIO.setup(17, GPIO.IN) # infrared sensor 1
+GPIO.setup(27, GPIO.IN) # infrared sensor 2
+
+# constants 
 rotatechange = 0.8
 speedchange = 0.18
 occ_bins = [-1, 0, 100, 101]
@@ -45,6 +48,7 @@ scanfile = 'lidar.txt'
 mapfile = 'map.txt'
 speedchange_lf = 0.05
 rotatechange_lf = 0.5
+
 # code from https://automaticaddison.com/how-to-convert-a-quaternion-into-euler-angles-in-python/
 def euler_from_quaternion(x, y, z, w):
     """
@@ -68,38 +72,47 @@ def euler_from_quaternion(x, y, z, w):
 
     return roll_x, pitch_y, yaw_z # in radians
 
+# class for AutoNav ROS node
 class AutoNav(Node):
 
     def __init__(self):
         super().__init__('auto_nav')
+        # initiate roll pitch and yaw variables
         self.roll = 0
         self.pitch = 0
         self.yaw = 0
-     
+
+        # initiate x and y variables
         self.x = 0.0
         self.y = 0.0
 
+        # set the initial state of the TurtleBot to be False
         self.going_back = False
-        self.sleeprate = 0.25
-        self.rate = 10
-        self.rc = self.create_rate(self.rate)
-        self.r = self.create_rate(self.rate)
+
+        # set MQTT broker, and MQTT topics
         self.broker_address= self.declare_parameter("~broker_ip_address", '172.20.10.6').value
         self.DOCK_TOPIC = self.declare_parameter("~dock_pub_topic", 'dock').value
         self.TABLE_TOPIC = self.declare_parameter("~table_sub_topic", 'table').value
+
+        # instantiate the MQTTClient object
         self.mqttclient = mqtt.Client("ros2mqtt")
+
+        # set callback functions for when:
+        # the RPi is connected to the MQTT broker;
+        # the RPi receives a message from the MQTT broker.
         self.mqttclient.on_connect = self.on_connect
         self.mqttclient.on_message = self.on_message
+
+        # print statements to verify the MQTT brokers, and topics used
         self.get_logger().info('relay_ros2_mqtt:: started...')
         self.get_logger().info(f'relay_ros2_mqtt:: broker_address = {self.broker_address}')
-        self.get_logger().info(f'relay_ros2_mqtt:: DOCK_TOPIC = {self.DOCK_TOPIC}') #topic to publish to through mqtt
-        self.get_logger().info(f'relay_ros2_mqtt:: TABLE_TOPIC = {self.TABLE_TOPIC}') # topic to subscribe to through mqtt
-# create publisher for moving TurtleBot
+        self.get_logger().info(f'relay_ros2_mqtt:: DOCK_TOPIC = {self.DOCK_TOPIC}') 
+        self.get_logger().info(f'relay_ros2_mqtt:: TABLE_TOPIC = {self.TABLE_TOPIC}') 
+
+        # create publisher for moving TurtleBot
         self.publisher_ = self.create_publisher(Twist,'cmd_vel',10)
-        # self.get_logger().info('Created publisher'
-        # # self.get_logger().info('Created subscriber')
-        # self.odom_subscription  # prevent unused variable warning
-        # # initialize variables
+      
+        # create subscription to get map2base data
         self.map2base_sub = self.create_subscription(
             Pose,
             'map2base',
@@ -126,36 +139,38 @@ class AutoNav(Node):
         self.laser_range = np.array([])
 
 
+    # method to connect the RPi to the MQTT broker
     def connect_to_mqtt(self):
         print('Connecting...')
         self.mqttclient.connect(self.broker_address)
         global run
         while True:
             self.mqttclient.loop()
-        #self.mqttclient.loop_start()
 
+    # callback function when RPi is connected to MQTT broker
     def on_connect(self, client, userdata, flags, rc):
         print('Connected with result code'  + str(rc))
         
+        # RPi should subscripe to the table topic, 
+        # and will call the AutoNav::on_message method when it receives a message
         client.subscribe(self.TABLE_TOPIC)
             
+    # callback function when RPi receives a message from the MQTT broker (table topic)
     def on_message(self, client, userdata, msg):
         table = msg.payload.decode('utf-8')
-
         print('Message received\nTopic: ' + msg.topic + '\nMessage: ' + table)
-        
-        #while there is no can in the robot
-        #while (GPIO.input(5) != GPIO.LOW/HIGH): #TODO: update channel number
-         #   time.sleep(2)
-        #self.mqttclient.loop_stop()
+
+        # call the route method to get the path to the table
         self.route(table)
+
+        # stop the MQTT broker, in order to subscribe to spin AutoNav node
         self.mqttclient.loop_stop()
     
+    # method to configure the paths to take for each checkpoint 
     def route(self, table):
         self.table = table
         self.get_logger().info(f'got {table}')
 
-        #configure the paths to take for each checkpoint
         if (table == '1'):
             self.path = 6
         elif (table == '2'):
@@ -170,17 +185,15 @@ class AutoNav(Node):
             self.path = 10090806
         self.mover()
 
-
+    # callback function when a map2base message is received
     def m2b_callback(self, msg):
         position = msg.position
-        #self.get_logger().info('self x : %f ' % position.x)
-        #self.get_logger().info('self y : %f ' % position.y)
         self.x = position.x
         self.y = position.y
         orientation_quat =  msg.orientation
         self.roll, self.pitch, self.yaw = euler_from_quaternion(orientation_quat.x, orientation_quat.y, orientation_quat.z, orientation_quat.w)
 							 
-
+    # callback function when an occupancy message is received
     def occ_callback(self, msg):
         # create numpy array
         msgdata = np.array(msg.data)
@@ -199,7 +212,7 @@ class AutoNav(Node):
         # print to file
         # np.savetxt(mapfile, self.occdata)
 
-
+    # callback function when a scan message is received
     def scan_callback(self, msg):
         # create numpy array
         self.laser_range = np.array(msg.ranges)
@@ -209,9 +222,7 @@ class AutoNav(Node):
         self.laser_range[self.laser_range==0] = np.nan
 
    
-    # rotate the bot a specified angle
-   
-    # function to rotate the TurtleBot
+    # method to rotate the bot a specified angle
     def rotatebot(self, rot_angle):
         self.get_logger().info('In rotatebot')
         # create Twist object
@@ -256,6 +267,7 @@ class AutoNav(Node):
         # stop the rotation
         self.publisher_.publish(twist)
  
+    # method to pick the shortest direction 
     def pick_shortest_direction(self):
         if self.laser_range.size != 0:
             # use nanargmin as there are nan's in laser_range added to replace 0's
@@ -277,6 +289,7 @@ class AutoNav(Node):
         self.pick_direction(0)
         self.stopbot()
 
+    # method to pick a specific direction to scan for shortest direction
     def pick_direction(self, direction):
         print('in pick_direction')
         if direction == 0:
@@ -287,34 +300,40 @@ class AutoNav(Node):
             angle = range(-120, -60, 1) 
         lri = np.nanargmin(self.laser_range[angle])
         if direction != 0:
+            # self.laser range is an array where each index i contains a the shortest distance at degree i
+            # hence, an adjustment is needed to recalibrate the indexes to their initial index values
             adjustment = direction * 60.0
         else:
             adjustment = 0.0
+        
+        # rotate the bot in the direction of the shortest distance in specified direction
         self.rotatebot(float(lri) +  adjustment)
-        print("HELPPPPPPPPPPPPPPPPPP")
+
+        # move the bot forward
         twist = Twist()
         twist.linear.x = 0.1
         twist.angular.z = 0.0
         self.publisher_.publish(twist)
 
+        # while it is moving forward..
         while rclpy.ok():
             if self.laser_range[angle].size != 0:
                 rclpy.spin_once(self)
-                
+                # get the shortest distance 360 degrees around the bot
                 lri = np.nanargmin(self.laser_range[angle])
-                #lri = np.less(self.laser_range[angle], stop_distance)
-                #lri2 = np.less(self.laser_range[angle], stop_distance)
 
-                #lri2 = (self.laser_range[angle] < (2 * stop_distance)).nonzero()
-                   
+                # if the shortest distance is lesser than predefined stop_distance,
                 if self.laser_range[lri] < stop_distance:
                     self.get_logger().info('stopping')
+                    # then we stop the bot
                     twist.linear.x = 0.0
                     twist.angular.z = 0.0
                     self.publisher_.publish(twist)
                     break
- 
+                
+                # else if the shortest distance is less than 2 times of the stop_distance, 
                 elif self.laser_range[lri] < 2 * stop_distance:
+                    # slow down the bot
                     twist.linear.x = twist.linear.x * 0.3
                     twist.angular.z = 0.0
                     self.publisher_.publish(twist)
@@ -322,7 +341,8 @@ class AutoNav(Node):
                 rclpy.spin_once(self)
 
         rclpy.spin_once(self)
-        #self.stopbot()
+
+    # method to stop the bot
     def stopbot(self):
         self.get_logger().info('In stopbot')
         # publish to cmd_vel to move TurtleBot
@@ -332,85 +352,111 @@ class AutoNav(Node):
         # time.sleep(1)
         self.publisher_.publish(twist)
 
+    # main method to traverse from one waypoint to another
     def traverse_waypoints(self):
-        print('in traverse_waypoints')
+        print('In traverse_waypoints')
         path = self.path
         
         while path != 0:
+            # update path to be the remaining checkpoints 
+            # and current checkpoint to be the mod of path % 100
             path, checkpoint = divmod(path, 100)
 
             print(f"[CURRENT CHECKPOINT]: {checkpoint}")
-            #allow the callback functions to run
+
+            # allow the callback functions to run
             rclpy.spin_once(self)
             time.sleep(3)
+            # we found that spinning twice gave more reliable results
             rclpy.spin_once(self)
             
-
+            
             goal_x = waypoints[checkpoint][0]
             goal_y = waypoints[checkpoint][1]  
             print(f'goal_x: {goal_x}; goal_y: {goal_y}')
             x_diff = goal_x - self.x
             y_diff = goal_y - self.y
-
-            # take into account orientation of bot before turning
                 
-
-            while (abs(x_diff) > 0.18 or abs(y_diff) > 0.18):
+            # tolerance of how close the bot should be before it stops
+            tolerance = 0.18
+            # distance at which the bot should slow down (for greater accuracy)
+            slow_down_dist = 0.5
+            
+            while (abs(x_diff) > tolerance or abs(y_diff) > tolerance):
+                # calculate the angle to goal position
                 angle_to_goal = math.atan2(y_diff, x_diff)
+                # rotate the bot by this angle
                 self.rotatebot(math.degrees(angle_to_goal - self.yaw))
+
+
+                # TODO @benedict idk how explain this,, can check if correct
+                # if the x_diff is larger, we will track the x_diff
                 if abs(x_diff) > abs(y_diff):
-                    while abs(x_diff) > 0.18:
+                    while abs(x_diff) > tolerance:
+                        # move forward by speed: speedchange
                         twist = Twist()
                         twist.linear.x = speedchange
-                        if abs(x_diff) < 0.5:
+
+                        # if x_diff is lesser than slow_down dist, slow down.
+                        if abs(x_diff) < slow_down_dist:
                             twist.linear.x = twist.linear.x * 0.2
                         twist.angular.z = 0.0
                         time.sleep(1)
                         self.publisher_.publish(twist)
-                        print(f'[BEFORE SPIN] x_diff = {x_diff}; y_diff = {y_diff}')
+                        
+                        # TODO do we need this
+                        # print(f'[BEFORE SPIN] x_diff = {x_diff}; y_diff = {y_diff}')
                         
                         rclpy.spin_once(self)
-
                         rclpy.spin_once(self)
+
                         x_diff = goal_x - self.x
                         y_diff = goal_y - self.y
-                        print(f"[AFTER SPIN] x_diff = {x_diff}; y_diff = {y_diff}")
+                        #print(f"[AFTER SPIN] x_diff = {x_diff}; y_diff = {y_diff}")
                        
                 else:
-                    while abs(y_diff) > 0.18:
+                    
+                    while abs(y_diff) > tolerance:
+                        # move forward by speed change
                         twist = Twist()
                         twist.linear.x = speedchange
-                        if abs(y_diff) < 0.5:
+
+                        # if x_diff is lesser than slow_down dist, slow down.
+                        if abs(y_diff) < slow_down_dist:
                             twist.linear.x = twist.linear.x * 0.2
                         twist.angular.z = 0.0
                         time.sleep(1)
                         self.publisher_.publish(twist)
-                        print(f'[BEFORE SPIN] x_diff = {x_diff}; y_diff = {y_diff}')
+                        #print(f'[BEFORE SPIN] x_diff = {x_diff}; y_diff = {y_diff}')
                         
                         rclpy.spin_once(self)
                         rclpy.spin_once(self)
+
                         x_diff = goal_x - self.x
                         y_diff = goal_y - self.y
 
-                        print(f"[MOVING] x_diff = {x_diff}; y_diff = {y_diff}")
-                twist = Twist()       
-                twist.linear.x = 0.0
-                twist.angular.z = 0.0
-                self.publisher_.publish(twist)
+                        #print(f"[MOVING] x_diff = {x_diff}; y_diff = {y_diff}")
+
+                # update the x_diff and y_diff at the final position,
+                # to check if the x_diff and y_diff is lesser then the tolerance 
+                # if it is, stop the bot. else, self-correct 
+                self.stopbot()
                 x_diff = goal_x - self.x
                 y_diff = goal_y - self.y
+
+
             self.stopbot()
         
+        # call the docking method based on whether the bot is going back or not.
         if not self.going_back:
             self.dock_to_table()
         else:
             self.dock_to_dispenser()
             
+    # method to navigate to table 6 
     def go_to_table_6(self):
         rclpy.spin_once(self)
         time.sleep(1)
-        goal_x = self.x + 0.5
-        x_diff = goal_x - self.x
 
         
         if self.laser_range.size != 0:
@@ -425,6 +471,8 @@ class AutoNav(Node):
         if lr2i > 180:
             lr2i -= 360
         
+        goal_x = self.x + 0.5
+        x_diff = goal_x - self.x
         while x_diff > 0.1 and self.laser_range[lr2i] > 0.5:
             twist = Twist()
             twist.linear.x = speedchange

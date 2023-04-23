@@ -34,7 +34,12 @@ front_angle = 30
 front_angles = range(-front_angle,front_angle+1,1)
 scanfile = 'lidar.txt'
 mapfile = 'map.txt'
-waypoints = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10: [], 11: [], 12: []}
+num_of_waypoints = 12
+waypoints = {}
+
+# initialising 
+for i in range(1, num_of_waypoints + 1):
+    waypoints[i].extend([])
 
 # code from https://automaticaddison.com/how-to-convert-a-quaternion-into-euler-angles-in-python/
 def euler_from_quaternion(x, y, z, w):
@@ -126,4 +131,3 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-
