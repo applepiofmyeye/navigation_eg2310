@@ -15,7 +15,7 @@
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, Pose
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import OccupancyGrid
@@ -34,7 +34,12 @@ front_angle = 30
 front_angles = range(-front_angle,front_angle+1,1)
 scanfile = 'lidar.txt'
 mapfile = 'map.txt'
-waypoints = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10: [], 11: [], 12: []}
+num_of_waypoints = 12
+waypoints = {}
+
+# initialising 
+for i in range(1, num_of_waypoints + 1):
+    waypoints[i].extend([])
 
 # code from https://automaticaddison.com/how-to-convert-a-quaternion-into-euler-angles-in-python/
 def euler_from_quaternion(x, y, z, w):
@@ -63,43 +68,54 @@ class Waypoint(Node):
 
     def __init__(self):
         super().__init__('waypoint')
+        self.px = 0.0
+        self.py = 0.0
+        self.ox = 0.0
+        self.oy = 0.0
+        self.oz = 0.0
         
         # create subscription to track orientation
-        self.odom_subscription = self.create_subscription(
-            Odometry,
-            'odom',
-            self.odom_callback,
+        self.m2b_subscription = self.create_subscription(
+            Pose,
+            'map2base',
+            self.m2b_callback,
             10)
         # self.get_logger().info('Created subscriber')
-        self.odom_subscription  # prevent unused variable warning
+        self.m2b_subscription  # prevent unused variable warning
         # initialize variables
         self.roll = 0
         self.pitch = 0
         self.yaw = 0
 
-    def odom_callback(self, msg):
-        # self.get_logger().info('In odom_callback')
-        inp = input("Enter input: ")
-        if inp == "w":
-            checkpt_id = int(input("Enter checkpoint: "))
-            print("saving..")
-            orien =  msg.pose.pose.orientation
-            px = msg.pose.pose.position.x
-            py = msg.pose.pose.position.y
-            ox, oy, oz = euler_from_quaternion(orien.x, orien.y, orien.z, orien.w)
+    def m2b_callback(self, msg):
+        self.px = msg.position.x
+        self.py = msg.position.y
+        orien = msg.orientation
+        self.ox, self.oy, self.oz = euler_from_quaternion(orien.x, orien.y, orien.z, orien.w)
 
+    
+    def get_waypoints(self):
+                # self.get_logger().info('In odom_callback')
+        n = 13
+        while n != 0:
+            inp = input("Enter input: ")
+            if inp == "w":
+                checkpt_id = int(input("Enter checkpoint: "))
+                print("saving..")
+                rclpy.spin_once(self)
             # self.get_logger().info(orien)
             #while numbers != 0:
                 #num = numbers % 10
                 #numbers = (numbers // 10)
-            data = (px, py, ox, oy, oz)
-            waypoints[checkpt_id].append(data)
-            print(waypoints)
-
-        elif inp == "s":
-            print("saving...")
-            with open('waypoints.pickle', 'wb') as handle:
-                pickle.dump(waypoints, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                data = [self.px, self.py, self.ox, self.oy, self.oz]
+                waypoints[checkpt_id].extend(data)
+                print(waypoints)
+                n -= 1
+            elif inp == "s":
+                print("saving...")
+                with open('waypoints.pickle', 'wb') as handle:
+                    pickle.dump(waypoints, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                n -= 1
 
 def main(args=None):
     rclpy.init(args=args)
@@ -107,8 +123,7 @@ def main(args=None):
         waypoint = Waypoint()
         start = input("Press s to start: ")
         if start == "s":
-            rclpy.spin(waypoint)
-
+            waypoint.get_waypoints()
     except KeyboardInterrupt:
         waypoint.destroy_node()
         rclpy.shutdown()
@@ -116,4 +131,3 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-
