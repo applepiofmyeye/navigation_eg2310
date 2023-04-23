@@ -26,18 +26,10 @@ import time
 import pickle
 
 # constants
-rotatechange = 0.1
-speedchange = 0.05
-occ_bins = [-1, 0, 100, 101]
-stop_distance = 0.25
-front_angle = 30
-front_angles = range(-front_angle,front_angle+1,1)
-scanfile = 'lidar.txt'
-mapfile = 'map.txt'
 num_of_waypoints = 12
 waypoints = {}
 
-# initialising 
+# initialising an array with number of waypoints as predefined
 for i in range(1, num_of_waypoints + 1):
     waypoints[i].extend([])
 
@@ -68,6 +60,10 @@ class Waypoint(Node):
 
     def __init__(self):
         super().__init__('waypoint')
+        # initialize variables
+        self.roll = 0
+        self.pitch = 0
+        self.yaw = 0
         self.px = 0.0
         self.py = 0.0
         self.ox = 0.0
@@ -80,12 +76,8 @@ class Waypoint(Node):
             'map2base',
             self.m2b_callback,
             10)
-        # self.get_logger().info('Created subscriber')
         self.m2b_subscription  # prevent unused variable warning
-        # initialize variables
-        self.roll = 0
-        self.pitch = 0
-        self.yaw = 0
+        
 
     def m2b_callback(self, msg):
         self.px = msg.position.x
@@ -95,18 +87,14 @@ class Waypoint(Node):
 
     
     def get_waypoints(self):
-                # self.get_logger().info('In odom_callback')
-        n = 13
+        n = num_of_waypoints
         while n != 0:
             inp = input("Enter input: ")
             if inp == "w":
                 checkpt_id = int(input("Enter checkpoint: "))
                 print("saving..")
                 rclpy.spin_once(self)
-            # self.get_logger().info(orien)
-            #while numbers != 0:
-                #num = numbers % 10
-                #numbers = (numbers // 10)
+            
                 data = [self.px, self.py, self.ox, self.oy, self.oz]
                 waypoints[checkpt_id].extend(data)
                 print(waypoints)
@@ -116,6 +104,8 @@ class Waypoint(Node):
                 with open('waypoints.pickle', 'wb') as handle:
                     pickle.dump(waypoints, handle, protocol=pickle.HIGHEST_PROTOCOL)
                 n -= 1
+            else:
+                print("Please enter 's' or 'w' only.")
 
 def main(args=None):
     rclpy.init(args=args)

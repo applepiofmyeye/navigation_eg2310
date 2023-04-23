@@ -34,8 +34,10 @@ print (waypoints)
 BROKER_IP = '172.20.10.6'
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(21, GPIO.IN, pull_up_down=GPIO.PUD_UP) # microswitch
-GPIO.setup(17, GPIO.IN) # infrared sensor 1
-GPIO.setup(27, GPIO.IN) # infrared sensor 2
+left_ir = 17
+right_ir = 27
+GPIO.setup(left_ir, GPIO.IN) # infrared sensor 1
+GPIO.setup(right_ir, GPIO.IN) # infrared sensor 2
 
 # constants 
 rotatechange = 0.8
@@ -503,6 +505,8 @@ class AutoNav(Node):
         path_string = path_string[::-1]
         self.path = int(path_string)
         self.traverse_waypoints()
+        self.line_following(1)
+        self.connect_to_mqtt()
         
     
     def dock_to_dispenser(self):
@@ -535,7 +539,7 @@ class AutoNav(Node):
             elif left_detect == 1 and right_detect == 1: 
                 if sign == 1 and -2.0 < math.degrees(self.yaw) < 2.0:
                     break
-                elif sign == 0:
+                elif sign == -1:
                     break
         print("reached destination, stopping.")
         twist = Twist()
@@ -571,15 +575,9 @@ def main(args=None):
     
     auto_nav = AutoNav()
     rclpy.spin_once(auto_nav)
+    auto_nav.line_following(-1)
     auto_nav.connect_to_mqtt()
 
-    # create matplotlib figure
-    # plt.ion()
-    # plt.show()
-
-    # Destroy the node explicitly
-    # (optional - otherwise it will be done automatically
-    # when the garbage collector destroys the node object)
     auto_nav.destroy_node()
     rclpy.shutdown()
 
