@@ -193,7 +193,8 @@ class AutoNav(Node):
         self.x = position.x
         self.y = position.y
         orientation_quat =  msg.orientation
-        self.roll, self.pitch, self.yaw = euler_from_quaternion(orientation_quat.x, orientation_quat.y, orientation_quat.z, orientation_quat.w)
+        self.roll, self.pitch, self.yaw = euler_from_quaternion(
+            orientation_quat.x, orientation_quat.y, orientation_quat.z, orientation_quat.w)
 							 
     # callback function when an occupancy message is received
     def occ_callback(self, msg):
@@ -204,7 +205,9 @@ class AutoNav(Node):
         # calculate total number of bins
         # total_bins = msg.info.width * msg.info.height
         # log the info
-        # self.get_logger().info('Unmapped: %i Unoccupied: %i Occupied: %i Total: %i' % (occ_counts[0][0], occ_counts[0][1], occ_counts[0][2], total_bins))
+        # self.get_logger().info(
+        # 'Unmapped: %i Unoccupied: %i Occupied: %i Total: %i' % (occ_counts[0][0], occ_counts[0][1], occ_counts[0][2], total_bins)
+        # )
 
         # make msgdata go from 0 instead of -1, reshape into 2D
         oc2 = msgdata + 1
@@ -390,8 +393,6 @@ class AutoNav(Node):
                 # rotate the bot by this angle
                 self.rotatebot(math.degrees(angle_to_goal - self.yaw))
 
-
-                # TODO @benedict idk how explain this,, can check if correct
                 # if the x_diff is larger, we will track the x_diff
                 if abs(x_diff) > abs(y_diff):
                     while abs(x_diff) > tolerance:
@@ -406,15 +407,12 @@ class AutoNav(Node):
                         time.sleep(1)
                         self.publisher_.publish(twist)
                         
-                        # TODO do we need this
-                        # print(f'[BEFORE SPIN] x_diff = {x_diff}; y_diff = {y_diff}')
                         
                         rclpy.spin_once(self)
                         rclpy.spin_once(self)
 
                         x_diff = goal_x - self.x
                         y_diff = goal_y - self.y
-                        #print(f"[AFTER SPIN] x_diff = {x_diff}; y_diff = {y_diff}")
                        
                 else:
                     
@@ -496,9 +494,16 @@ class AutoNav(Node):
         time.sleep(1)
         while not bool(GPIO.input(21)):
             time.sleep(0.001)
+        if (self.table == 1 or 3 or 5):
+            self.pick_direction(0)
+        elif (self.table == 4):
+            self.pick_direction(1)
+        elif (self.table == 6):
+            self.go_to_table_6()
+
         self.return_home() 
 
-    def return_home(self):
+    def return_home(self): 
         self.going_back = True
         self.path = self.path * 100 + 1
         path_string = str(self.path)
@@ -547,6 +552,7 @@ class AutoNav(Node):
         twist.angular.z = 0.0
         self.publisher_.publish(twist)
 
+
     def mover(self):
         try:
             while bool(GPIO.input(21)):
@@ -558,7 +564,7 @@ class AutoNav(Node):
             self.publisher_.publish(twist)
             time.sleep(2)
             self.stopbot()
-            #self.line_following(-1)
+            self.line_following(-1)
             self.traverse_waypoints()
 
         except Exception as e:
@@ -575,7 +581,6 @@ def main(args=None):
     
     auto_nav = AutoNav()
     rclpy.spin_once(auto_nav)
-    auto_nav.line_following(-1)
     auto_nav.connect_to_mqtt()
 
     auto_nav.destroy_node()
