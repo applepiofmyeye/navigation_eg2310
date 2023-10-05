@@ -2,7 +2,7 @@
 
 Turtlebot navigation code for EG2310, sem2 AY22/23.
 
-Refer to our group's documentation [here](http://www.github.com/applepiofmyeye/navigation_eg2310/docs/Documentation.pdf)
+Refer to our group's documentation [here](https://github.com/applepiofmyeye/navigation_eg2310/blob/main/docs/Documentation.pdf)
 
 ## Components you'll need for this project:
 
