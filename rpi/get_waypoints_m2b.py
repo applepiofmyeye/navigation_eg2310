@@ -25,7 +25,7 @@ import cmath
 import time
 import pickle
 
-# constants
+# Initialise constants: number of waypoints and waypoints dictionary
 num_of_waypoints = 12
 waypoints = {}
 
@@ -33,14 +33,16 @@ waypoints = {}
 for i in range(1, num_of_waypoints + 1):
     waypoints[i].extend([])
 
+
 # code from https://automaticaddison.com/how-to-convert-a-quaternion-into-euler-angles-in-python/
 def euler_from_quaternion(x, y, z, w):
     """
-    Convert a quaternion into euler angles (roll, pitch, yaw)
-    roll is rotation around x in radians (counterclockwise)
-    pitch is rotation around y in radians (counterclockwise)
-    yaw is rotation around z in radians (counterclockwise)
+        Convert a quaternion into euler angles (roll, pitch, yaw)
+        roll is rotation around x in radians (counterclockwise)
+        pitch is rotation around y in radians (counterclockwise)
+        yaw is rotation around z in radians (counterclockwise)
     """
+
     t0 = +2.0 * (w * x + y * z)
     t1 = +1.0 - 2.0 * (x * x + y * y)
     roll_x = math.atan2(t0, t1)
@@ -54,9 +56,14 @@ def euler_from_quaternion(x, y, z, w):
     t4 = +1.0 - 2.0 * (y * y + z * z)
     yaw_z = math.atan2(t3, t4)
 
-    return roll_x, pitch_y, yaw_z # in radians
-    
+    return roll_x, pitch_y, yaw_z  # in radians
+
+
 class Waypoint(Node):
+    """
+        Represents a waypoint with attributes of roll, pitch, yaw, 
+        as well as position px and py, orientation ox, oy, oz.
+    """
 
     def __init__(self):
         super().__init__('waypoint')
@@ -69,7 +76,7 @@ class Waypoint(Node):
         self.ox = 0.0
         self.oy = 0.0
         self.oz = 0.0
-        
+
         # create subscription to track orientation
         self.m2b_subscription = self.create_subscription(
             Pose,
@@ -77,15 +84,20 @@ class Waypoint(Node):
             self.m2b_callback,
             10)
         self.m2b_subscription  # prevent unused variable warning
-        
+
+    # when a msg is received (after rclpy.spin()), the following function is called,
+    # setting the waypoint's position and orientation.
 
     def m2b_callback(self, msg):
         self.px = msg.position.x
         self.py = msg.position.y
         orien = msg.orientation
-        self.ox, self.oy, self.oz = euler_from_quaternion(orien.x, orien.y, orien.z, orien.w)
+        self.ox, self.oy, self.oz = euler_from_quaternion(
+            orien.x, orien.y, orien.z, orien.w)
 
-    
+    # function which manages most of the logic,
+    # each loop is saved one checkpoint
+    # TODO: have the loop in the main instead, this function should only deal with getting the waypoint
     def get_waypoints(self):
         n = num_of_waypoints
         while n != 0:
@@ -93,8 +105,8 @@ class Waypoint(Node):
             if inp == "w":
                 checkpt_id = int(input("Enter checkpoint: "))
                 print("saving..")
-                rclpy.spin_once(self)
-            
+                rclpy.spin_once(self)  # calles m2b_callback
+
                 data = [self.px, self.py, self.ox, self.oy, self.oz]
                 waypoints[checkpt_id].extend(data)
                 print(waypoints)
@@ -102,10 +114,14 @@ class Waypoint(Node):
             elif inp == "s":
                 print("saving...")
                 with open('waypoints.pickle', 'wb') as handle:
-                    pickle.dump(waypoints, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                    pickle.dump(waypoints, handle,
+                                protocol=pickle.HIGHEST_PROTOCOL)
                 n -= 1
             else:
                 print("Please enter 's' or 'w' only.")
+
+# Entry point for the code
+
 
 def main(args=None):
     rclpy.init(args=args)
