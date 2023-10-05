@@ -29,7 +29,7 @@ Refer to our group's documentation [here](https://github.com/applepiofmyeye/navi
 5. Execute the publisher on the RPi, run the subscriber on your laptop, and confirm that they are communicating without any errors. Then, swap the devices to validate that they function effectively as both publishers and subscribers.
    Message Queuing Telemetry Transport Setup
 
-6. On the RPi, install the ‘paho-mqtt’ package, the Eclipse Paho MQTT Python client library, using either one of the following methods by entering the following into the command-line interface (CLI)
+6. On the RPi, install the `paho-mqtt` package, the Eclipse Paho MQTT Python client library, using either one of the following methods by entering the following into the command-line interface (CLI)
 
 ```
 apt install
@@ -38,7 +38,7 @@ pip install
 pip install paho-mqtt
 ```
 
-6. On the laptop, in the Ubuntu OS, install ‘mosquitto’, a broker for the MQTT protocol version 5.0/3.1.1/3.1 using the following command.
+6. On the laptop, in the Ubuntu OS, install `mosquitto`, a broker for the MQTT protocol version 5.0/3.1.1/3.1 using the following command.
 
 ```
 sudo snap install
@@ -93,7 +93,7 @@ mv init.py ..
 git clone git@github.com:MoeySeanJean/r2auto_nav.git .
 ```
 
-4. Then, we can move our `init`.py file back into the current working directory
+4. Then, we can move our `init.py` file back into the current working directory
 
 ```
 mv ../init.py .
@@ -132,22 +132,28 @@ mv ../init.py .
 https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
 ```
 
+<img src="./docs/image1.png" style="width: 400px">
+
 Then click the “OK” button.
 
 2. Open the Boards Manager. Go to Tools > Board > Boards Manager…
 
 3. Search for ESP32 and press install button for the “ESP32 by Espressif Systems“:
 
+<img src="./docs/image2.png" style="width: 400px">
+
 4. Plug the ESP32 board to the laptop. With your Arduino IDE open, select your Board in Tools > Board menu (for our case, we chose the DOIT ESP32 DEVKIT V1).
 
 5. Select the port connected to the ESP32, under Tools > Port, an
 
-6. From this link, copy the file titled “ESP.ino” and create a new Arduino sketch with this code.
+6. From this link, copy the file titled `ESP.ino` and create a new Arduino sketch with this code.
 
 7. Press the Upload button on the Arduino IDE and wait for the code to compile.
 
 8. After it compiles, the IDE should display “Connecting…”. Press and hold the Boot button on the ESP32 until the upload begins.
 
 9. If everything went as expected, the IDE should display a “Done uploading” message.
+
+<img src="./docs/image3.png" style="width: 400px">
 
 10. If the ESP32 has been connected to the OLED screen as mentioned in Section 4.4.4 of our [documentation](http://www.github.com/applepiofmyeye/navigation_eg2310/docs/Documentation.pdf), it should show the displays as per mentioned.
